@@ -26,21 +26,20 @@
       </div>
       <div id="status" class="status"></div>
 
-   <section class="filters">
-  <div class="time-filters">
-    <button class="chip" data-filter="today">Днес</button>
-    <button class="chip" data-filter="week">Тази седмица</button>
-    <button class="chip" data-filter="month">Този месец</button>
-    <button class="chip active" data-filter="all">Всички</button>
-  </div>
-  <div class="category-filter">
-    <label for="categorySelect" class="cat-label">Категория:</label>
-    <select id="categorySelect">
-      <option value="all">Всички</option>
-    </select>
-  </div>
-</section>
-
+      <section class="filters">
+        <div class="time-filters">
+          <button class="chip" data-filter="today">Днес</button>
+          <button class="chip" data-filter="week">Тази седмица</button>
+          <button class="chip" data-filter="month">Този месец</button>
+          <button class="chip active" data-filter="all">Всички</button>
+        </div>
+        <div class="category-filter">
+          <label for="categorySelect" class="cat-label">Категория:</label>
+          <select id="categorySelect">
+            <option value="all">Всички</option>
+          </select>
+        </div>
+      </section>
 
       <div id="list" class="list">
         <div class="placeholder">
@@ -92,120 +91,108 @@
     return node;
   }
 
-  // ===== Карти (новини)
   function selectRawBlocks(doc){
     return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
   }
 
- function toCardElement(rawHTML, baseHref){
-  const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
-  const wrap = fragDoc.getElementById('wrap');
-  sanitize(wrap);
-  fixRelativeURLs(wrap, baseHref);
+  function toCardElement(rawHTML, baseHref){
+    const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
+    const wrap = fragDoc.getElementById('wrap');
+    sanitize(wrap);
+    fixRelativeURLs(wrap, baseHref);
 
-  // thumbnail
-  let imgSrc = null;
-  const img = wrap.querySelector('img');
-  if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
+    // thumbnail
+    let imgSrc = null;
+    const img = wrap.querySelector('img');
+    if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
 
-  // title & link
-  let title = '';
-  let link = '';
-  const h = wrap.querySelector('h1, h2, h3');
-  if(h && h.textContent.trim()){
-    title = h.textContent.trim();
-    const aInH = h.querySelector('a[href]');
-    if(aInH) link = aInH.getAttribute('href');
-  }else{
-    const a = wrap.querySelector('a[href]');
-    if(a && a.textContent.trim()){
-      title = a.textContent.trim();
-      link = a.getAttribute('href');
+    // title & link
+    let title = '';
+    let link = '';
+    const h = wrap.querySelector('h1, h2, h3');
+    if(h && h.textContent.trim()){
+      title = h.textContent.trim();
+      const aInH = h.querySelector('a[href]');
+      if(aInH) link = aInH.getAttribute('href');
     }else{
-      const p = wrap.querySelector('p, div');
-      title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
+      const a = wrap.querySelector('a[href]');
+      if(a && a.textContent.trim()){
+        title = a.textContent.trim();
+        link = a.getAttribute('href');
+      }else{
+        const p = wrap.querySelector('p, div');
+        title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
+      }
     }
+
+    // 🕒 дата
+    let dateText = '';
+    const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
+    if(t){ dateText = t.getAttribute('datetime') || t.content || ''; }
+    else { const dateEl = wrap.querySelector('span.date, div.date'); if(dateEl) dateText = dateEl.textContent.trim(); }
+
+    let formattedDate = '', isoDate = '';
+    if(dateText){
+      try{
+        const d = new Date(dateText);
+        if(!isNaN(d)) {
+          formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+          isoDate = d.toISOString();
+        } else formattedDate = dateText;
+      }catch{ formattedDate = dateText; }
+    }
+
+    // 🌐 източник
+    let source = '';
+    try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
+    const meta = source || '';
+
+    // 🏷️ категория
+    const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
+    const category = breadcrumb ? breadcrumb.textContent.trim() : '';
+
+    // render
+    const card = document.createElement('div'); 
+    card.className = 'card-row';
+    if(isoDate) card.dataset.date = isoDate;
+    if(category) card.dataset.category = category;
+
+    const thumb = document.createElement('div'); 
+    thumb.className = 'thumb';
+    if(imgSrc){ const im=document.createElement('img'); im.loading='lazy'; im.src=imgSrc; thumb.appendChild(im); }
+    else { thumb.textContent='no image'; }
+
+    const right = document.createElement('div'); right.className = 'right-side';
+    const headerRow = document.createElement('div'); headerRow.className = 'header-row';
+
+    const titleEl = document.createElement('h3'); titleEl.className='title';
+    if(link){
+      const a = document.createElement('a');
+      a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
+      a.style.color='inherit'; a.style.textDecoration='none';
+      a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
+      titleEl.appendChild(a);
+    } else { titleEl.textContent = title; }
+
+    const dateEl = document.createElement('div');
+    dateEl.className = 'meta-date';
+    dateEl.textContent = formattedDate ? `🕒 ${formattedDate}` : '';
+
+    headerRow.appendChild(titleEl);
+    if(formattedDate) headerRow.appendChild(dateEl);
+
+    const metaEl = document.createElement('div');
+    metaEl.className='meta';
+    metaEl.textContent = meta + (category ? ` • ${category}` : '');
+
+    right.appendChild(headerRow);
+    right.appendChild(metaEl);
+    card.appendChild(thumb);
+    card.appendChild(right);
+    return card;
   }
 
-  // 🕒 дата
-  let dateText = '';
-  const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
-  if(t){ dateText = t.getAttribute('datetime') || t.content || ''; }
-  else { const dateEl = wrap.querySelector('span.date, div.date'); if(dateEl) dateText = dateEl.textContent.trim(); }
-
-  let formattedDate = '', isoDate = '';
-  if(dateText){
-    try{
-      const d = new Date(dateText);
-      if(!isNaN(d)) {
-        formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-        isoDate = d.toISOString();
-      } else formattedDate = dateText;
-    }catch{ formattedDate = dateText; }
-  }
-
-  // 🌐 източник
-  let source = '';
-  try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
-  const meta = source || '';
-
-  // 🏷️ категория
-  const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
-  const category = breadcrumb ? breadcrumb.textContent.trim() : '';
-
-  // render
-  const card = document.createElement('div'); 
-  card.className = 'card-row';
-  if(isoDate) card.dataset.date = isoDate;
-  if(category) card.dataset.category = category;
-
-  const thumb = document.createElement('div'); 
-  thumb.className = 'thumb';
-  if(imgSrc){ const im=document.createElement('img'); im.loading='lazy'; im.src=imgSrc; thumb.appendChild(im); }
-  else { thumb.textContent='no image'; }
-
-  const right = document.createElement('div'); right.className = 'right-side';
-  const headerRow = document.createElement('div'); headerRow.className = 'header-row';
-
-  const titleEl = document.createElement('h3'); titleEl.className='title';
-  if(link){
-    const a = document.createElement('a');
-    a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
-    a.style.color='inherit'; a.style.textDecoration='none';
-    a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
-    titleEl.appendChild(a);
-  } else { titleEl.textContent = title; }
-
-  const dateEl = document.createElement('div');
-  dateEl.className = 'meta-date';
-  dateEl.textContent = formattedDate ? `🕒 ${formattedDate}` : '';
-
-  headerRow.appendChild(titleEl);
-  if(formattedDate) headerRow.appendChild(dateEl);
-
-  const metaEl = document.createElement('div');
-  metaEl.className='meta';
-  metaEl.textContent = meta + (category ? ` • ${category}` : '');
-
-  right.appendChild(headerRow);
-  right.appendChild(metaEl);
-  card.appendChild(thumb);
-  card.appendChild(right);
-  return card;
-}
-
-
-  function renderCardsFromDoc(doc, baseHref){
-    const raw = selectRawBlocks(doc);
-    clearList();
-    if(!raw.length){ placeholder('Нищо не е открито по селекторите.'); return; }
-    raw.forEach(node=>{
-      const card = toCardElement(node.outerHTML, baseHref);
-      listEl.appendChild(card);
-    });
-  }
-
-  // ===== Импорт страница
+  // ===== Извличане от URL / файл / HTML =====
   async function importURL(url){
     if(!url){ setStatus('Моля, въведи URL.'); return; }
     setStatus('⏳ Тегля страница през allorigins…');
@@ -222,12 +209,8 @@
     }
   }
 
-  // URL бутон
   $('#btnFetch').addEventListener('click',()=> importURL($('#urlInput').value.trim()));
-
-  // Качи .html
   $('#fileInput').addEventListener('change', async (e)=>{
-    setStatus('');
     const f = e.target.files[0];
     if(!f) return;
     const html = await f.text();
@@ -236,40 +219,26 @@
     setStatus('✅ Качен файл.');
     e.target.value='';
   });
-
-  // Постави HTML
   $('#btnPaste').addEventListener('click', async ()=>{
-    setStatus('');
     try{
       const text = await navigator.clipboard.readText();
       if(!text || !text.includes('<')){ setStatus('Буферът не съдържа HTML.'); return; }
       const doc = parseHTML(text);
       renderCardsFromDoc(doc, location.href);
       setStatus('✅ Поставен HTML.');
-    }catch(e){
-      setStatus('❌ Нямам достъп до клипборда. Разреши достъп или ползвай „Качи .html“.');
-    }
+    }catch(e){ setStatus('❌ Нямам достъп до клипборда.'); }
   });
 
-  // ===== Sidebar зареждане
+  // ===== Sidebar
   async function loadSidebar(){
     try{
       const html = await fetch('sidebar.html').then(r=>r.text());
       sidebarEl.innerHTML = html;
-      const themeToggle = sidebarEl.querySelector('#themeToggle');
-      if(themeToggle){
-        const saved=localStorage.getItem('theme');
-        themeToggle.checked = (saved!=='light');
-        themeToggle.addEventListener('change', e=> setTheme(e.target.checked));
-      }
       sidebarEl.addEventListener('click', (ev)=>{
         const target = ev.target.closest('[data-url]');
         if(!target) return;
         ev.preventDefault();
-        const url = target.getAttribute('data-url');
-        importURL(url);
-        sidebarEl.querySelectorAll('.cat.active').forEach(x=>x.classList.remove('active'));
-        if(target.classList.contains('cat')) target.classList.add('active');
+        importURL(target.getAttribute('data-url'));
       });
     }catch(e){
       sidebarEl.innerHTML = '<div class="brand">📰 Моите новини</div><div class="placeholder">Не успях да заредя sidebar.html</div>';
@@ -277,7 +246,7 @@
   }
   loadSidebar();
 
-  // ===== Reader view =====
+  // ===== Reader
   const reader = $('#reader'), readerContent = $('#readerContent');
   $('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; readerContent.innerHTML=''; });
   reader.addEventListener('click', (e)=>{ if(e.target.classList.contains('reader-backdrop')) { reader.style.display='none'; readerContent.innerHTML=''; } });
@@ -298,55 +267,31 @@
     try{
       const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
       const res = await fetch(prox, {mode:'cors'});
-      if(!res.ok) throw new Error('HTTP '+res.status);
       const html = await res.text();
       const doc = parseHTML(html);
-      const pictureEl = doc.querySelector('picture.img--title.landscape');
-      let imageHTML = pictureEl ? pictureEl.outerHTML : '';
+      const pic = doc.querySelector('picture.img--title.landscape');
+      let imgHTML = pic ? pic.outerHTML : '';
       let dateText = '';
-      const ldJsonMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-      let articleText = null;
-      if (ldJsonMatches){
-        for (let match of ldJsonMatches){
+      const ld = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+      let articleText=null;
+      if(ld){
+        for(let m of ld){
           try{
-            const jsonText = match.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
-            const data = JSON.parse(jsonText);
-            const pickDate = (obj)=> obj?.dateModified || obj?.datePublished || null;
-            if (Array.isArray(data)){
-              for (let item of data){
-                if (item.articleBody){ articleText = item.articleBody; dateText = pickDate(item); break; }
-              }
-            } else if (data.articleBody){ articleText = data.articleBody; dateText = pickDate(data); }
-          }catch(e){}
+            const j = JSON.parse(m.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1]);
+            const pick = o=>o?.dateModified||o?.datePublished||null;
+            if(Array.isArray(j)){for(let i of j){if(i.articleBody){articleText=i.articleBody;dateText=pick(i);break;}}}
+            else if(j.articleBody){articleText=j.articleBody;dateText=pick(j);}
+          }catch{}
           if(articleText) break;
         }
       }
-      if(!dateText){
-        const t = doc.querySelector('time[datetime]') || doc.querySelector('meta[property="article:published_time"]');
-        if(t){ dateText = t.getAttribute('datetime') || t.content || ''; }
-      }
-      let formattedDate = '';
-      if(dateText){
-        try{
-          const d = new Date(dateText);
-          if(!isNaN(d)) formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-        }catch{}
-      }
-      readerContent.innerHTML = '';
-      if(articleText){
-        const grouped = splitIntoSentenceParagraphs(articleText, 3);
-        const formatted = grouped.map((g,i)=> `<p class="${i===0?'lead':''}">${g}</p>`).join('');
-        const dateHTML = formattedDate ? `<div class="reader-date">🕒 ${formattedDate}</div>` : '';
-        readerContent.innerHTML = `${imageHTML}${dateHTML}${formatted}`;
-        reader.style.display = 'block';
-        setStatus('✅ Четецът е готов.');
-      }else{
-        setStatus('❌ Не е намерено "articleBody".');
-      }
-    }catch(e){ setStatus('❌ Грешка: '+e.message); }
+      if(!dateText){const t=doc.querySelector('time[datetime]');if(t)dateText=t.getAttribute('datetime');}
+      let fDate='';if(dateText){try{const d=new Date(dateText);if(!isNaN(d))fDate=d.toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'});}catch{}}
+      if(articleText){const g=splitIntoSentenceParagraphs(articleText,3);readerContent.innerHTML=`${imgHTML}${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}${g.map((x,i)=>`<p class="${i===0?'lead':''}">${x}</p>`).join('')}`;reader.style.display='block';}
+    }catch(e){setStatus('❌ Грешка: '+e.message);}
   }
 
-  // ===== Филтри по време =====
+  // ===== Филтри по време
   const filterButtons = document.querySelectorAll('.chip');
   filterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -378,38 +323,35 @@
   }
 
   // ===== Филтриране по категория =====
-const categorySelect = document.getElementById('categorySelect');
+  const categorySelect = document.getElementById('categorySelect');
+  function populateCategories(){
+    const categories = new Set();
+    document.querySelectorAll('.card-row[data-category]').forEach(c=>{
+      const cat = c.dataset.category;
+      if(cat) categories.add(cat);
+    });
+    categorySelect.innerHTML = '<option value="all">Всички</option>' + 
+      Array.from(categories).map(c=>`<option value="${c}">${c}</option>`).join('');
+  }
 
-function populateCategories(){
-  const categories = new Set();
-  document.querySelectorAll('.card-row[data-category]').forEach(c=>{
-    const cat = c.dataset.category;
-    if(cat) categories.add(cat);
+  categorySelect.addEventListener('change', ()=>{
+    const selected = categorySelect.value;
+    document.querySelectorAll('.card-row').forEach(c=>{
+      const cat = c.dataset.category || '';
+      c.style.display = (selected==='all' || cat===selected) ? '' : 'none';
+    });
   });
-  categorySelect.innerHTML = '<option value="all">Всички</option>' + 
-    Array.from(categories).map(c=>`<option value="${c}">${c}</option>`).join('');
-}
 
-categorySelect.addEventListener('change', ()=>{
-  const selected = categorySelect.value;
-  document.querySelectorAll('.card-row').forEach(c=>{
-    const cat = c.dataset.category || '';
-    c.style.display = (selected==='all' || cat===selected) ? '' : 'none';
-  });
-});
-
-// Обновява списъка с категории след зареждане
-function renderCardsFromDoc(doc, baseHref){
-  const raw = selectRawBlocks(doc);
-  clearList();
-  if(!raw.length){ placeholder('Нищо не е открито по селекторите.'); return; }
-  raw.forEach(node=>{
-    const card = toCardElement(node.outerHTML, baseHref);
-    listEl.appendChild(card);
-  });
-  populateCategories();
-}
-
+  function renderCardsFromDoc(doc, baseHref){
+    const raw = selectRawBlocks(doc);
+    clearList();
+    if(!raw.length){ placeholder('Нищо не е открито по селекторите.'); return; }
+    raw.forEach(node=>{
+      const card = toCardElement(node.outerHTML, baseHref);
+      listEl.appendChild(card);
+    });
+    populateCategories();
+  }
 </script>
 </body>
 </html>
