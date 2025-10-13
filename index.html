@@ -251,57 +251,88 @@
     return groups;
   }
 
-  async function openReader(url){
-    setStatus('⏳ Зареждам статия за четене…');
-    try{
-      const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      const res = await fetch(prox, {mode:'cors'});
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const html = await res.text();
+ async function openReader(url){
+  setStatus('⏳ Зареждам статия за четене…');
+  try{
+    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res = await fetch(prox, {mode:'cors'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const html = await res.text();
 
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
 
-      // снимка от <picture.img--title.landscape>
-      const pictureEl = doc.querySelector('picture.img--title.landscape');
-      let imageHTML = pictureEl ? pictureEl.outerHTML : '';
+    // снимка от <picture.img--title.landscape>
+    const pictureEl = doc.querySelector('picture.img--title.landscape');
+    let imageHTML = pictureEl ? pictureEl.outerHTML : '';
 
-      // изваждане на articleBody от application/ld+json
-      let articleText = null;
-      const ldJsonMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-      if (ldJsonMatches){
-        for (let match of ldJsonMatches){
-          try{
-            const jsonText = match.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
-            const data = JSON.parse(jsonText);
-            if (Array.isArray(data)){
-              for (let item of data){
-                if (item && item.articleBody){ articleText = item.articleBody; break; }
+    // 🔍 търсим и дата
+    let dateText = '';
+    // 1) опитваме от JSON-LD
+    const ldJsonMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    let articleText = null;
+    if (ldJsonMatches){
+      for (let match of ldJsonMatches){
+        try{
+          const jsonText = match.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
+          const data = JSON.parse(jsonText);
+          const pickDate = (obj)=>{
+            if(!obj) return null;
+            return obj.dateModified || obj.datePublished || null;
+          };
+          if (Array.isArray(data)){
+            for (let item of data){
+              if (item.articleBody){
+                articleText = item.articleBody;
+                dateText = pickDate(item);
+                break;
               }
-            } else if (data && data.articleBody){
-              articleText = data.articleBody;
             }
-          }catch(e){}
-          if(articleText) break;
-        }
+          } else if (data.articleBody){
+            articleText = data.articleBody;
+            dateText = pickDate(data);
+          }
+        }catch(e){}
+        if(articleText) break;
       }
-
-      readerContent.innerHTML = '';
-      if(articleText){
-        const grouped = splitIntoSentenceParagraphs(articleText, 3);
-        const formatted = grouped.map((g,i)=> `<p class="${i===0?'lead':''}">${g}</p>`).join('');
-        readerContent.innerHTML = `${imageHTML}${formatted}`;
-        reader.style.display = 'block';
-        setStatus('✅ Четецът е готов.');
-      }else{
-        setStatus('❌ Не е намерено "articleBody" за тази статия.');
-        alert('Не е намерено "articleBody" за тази статия.');
-      }
-    }catch(e){
-      setStatus('❌ Грешка при отваряне на четеца: '+e.message);
-      alert('Грешка при четеца: '+e.message);
     }
+
+    // 2) fallback: опит да намерим <time> или <meta property="article:published_time">
+    if(!dateText){
+      const t = doc.querySelector('time[datetime]') || doc.querySelector('meta[property="article:published_time"]');
+      if(t){
+        dateText = t.getAttribute('datetime') || t.content || '';
+      }
+    }
+
+    // 3) формат на датата
+    let formattedDate = '';
+    if(dateText){
+      try{
+        const d = new Date(dateText);
+        if(!isNaN(d)) formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+      }catch{}
+    }
+
+    // показваме в reader
+    readerContent.innerHTML = '';
+    if(articleText){
+      const grouped = splitIntoSentenceParagraphs(articleText, 3);
+      const formatted = grouped.map((g,i)=> `<p class="${i===0?'lead':''}">${g}</p>`).join('');
+      const dateHTML = formattedDate ? `<div class="reader-date">🕒 ${formattedDate}</div>` : '';
+      readerContent.innerHTML = `${imageHTML}${dateHTML}${formatted}`;
+      reader.style.display = 'block';
+      setStatus('✅ Четецът е готов.');
+    }else{
+      setStatus('❌ Не е намерено "articleBody" за тази статия.');
+      alert('Не е намерено "articleBody" за тази статия.');
+    }
+  }catch(e){
+    setStatus('❌ Грешка при отваряне на четеца: '+e.message);
+    alert('Грешка при четеца: '+e.message);
   }
+}
+
 </script>
 </body>
 </html>
