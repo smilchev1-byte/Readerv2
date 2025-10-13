@@ -26,12 +26,21 @@
       </div>
       <div id="status" class="status"></div>
 
-      <section class="filters">
-        <button class="chip" data-filter="today">Днес</button>
-        <button class="chip" data-filter="week">Тази седмица</button>
-        <button class="chip" data-filter="month">Този месец</button>
-        <button class="chip active" data-filter="all">Всички</button>
-      </section>
+   <section class="filters">
+  <div class="time-filters">
+    <button class="chip" data-filter="today">Днес</button>
+    <button class="chip" data-filter="week">Тази седмица</button>
+    <button class="chip" data-filter="month">Този месец</button>
+    <button class="chip active" data-filter="all">Всички</button>
+  </div>
+  <div class="category-filter">
+    <label for="categorySelect" class="cat-label">Категория:</label>
+    <select id="categorySelect">
+      <option value="all">Всички</option>
+    </select>
+  </div>
+</section>
+
 
       <div id="list" class="list">
         <div class="placeholder">
@@ -88,113 +97,103 @@
     return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
   }
 
-  function toCardElement(rawHTML, baseHref){
-    const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
-    const wrap = fragDoc.getElementById('wrap');
-    sanitize(wrap);
-    fixRelativeURLs(wrap, baseHref);
+ function toCardElement(rawHTML, baseHref){
+  const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
+  const wrap = fragDoc.getElementById('wrap');
+  sanitize(wrap);
+  fixRelativeURLs(wrap, baseHref);
 
-    // thumbnail
-    let imgSrc = null;
-    const img = wrap.querySelector('img');
-    if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
+  // thumbnail
+  let imgSrc = null;
+  const img = wrap.querySelector('img');
+  if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
 
-    // title & link
-    let title = '';
-    let link = '';
-    const h = wrap.querySelector('h1, h2, h3');
-    if(h && h.textContent.trim()){
-      title = h.textContent.trim();
-      const aInH = h.querySelector('a[href]');
-      if(aInH) link = aInH.getAttribute('href');
+  // title & link
+  let title = '';
+  let link = '';
+  const h = wrap.querySelector('h1, h2, h3');
+  if(h && h.textContent.trim()){
+    title = h.textContent.trim();
+    const aInH = h.querySelector('a[href]');
+    if(aInH) link = aInH.getAttribute('href');
+  }else{
+    const a = wrap.querySelector('a[href]');
+    if(a && a.textContent.trim()){
+      title = a.textContent.trim();
+      link = a.getAttribute('href');
     }else{
-      const a = wrap.querySelector('a[href]');
-      if(a && a.textContent.trim()){
-        title = a.textContent.trim();
-        link = a.getAttribute('href');
-      }else{
-        const p = wrap.querySelector('p, div');
-        title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
-      }
+      const p = wrap.querySelector('p, div');
+      title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
     }
-
-    // 🕒 дата
-    let dateText = '';
-    const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
-    if(t){
-      dateText = t.getAttribute('datetime') || t.content || '';
-    } else {
-      const dateEl = wrap.querySelector('span.date, div.date');
-      if(dateEl) dateText = dateEl.textContent.trim();
-    }
-
-    let formattedDate = '', isoDate = '';
-    if(dateText){
-      try{
-        const d = new Date(dateText);
-        if(!isNaN(d)) {
-          formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-          isoDate = d.toISOString();
-        } else formattedDate = dateText;
-      }catch{
-        formattedDate = dateText;
-      }
-    }
-
-    // източник
-    let source = '';
-    try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
-    const meta = source || '';
-
-    // render
-    const card = document.createElement('div'); 
-    card.className = 'card-row';
-    if(isoDate) card.dataset.date = isoDate;
-
-    const thumb = document.createElement('div'); 
-    thumb.className = 'thumb';
-    if(imgSrc){ 
-      const im=document.createElement('img'); 
-      im.loading='lazy'; 
-      im.src=imgSrc; 
-      thumb.appendChild(im); 
-    } else { 
-      thumb.textContent='no image'; 
-    }
-
-    const right = document.createElement('div');
-    right.className = 'right-side';
-
-    const headerRow = document.createElement('div');
-    headerRow.className = 'header-row';
-
-    const titleEl = document.createElement('h3'); 
-    titleEl.className='title';
-    if(link){
-      const a = document.createElement('a');
-      a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
-      a.style.color='inherit'; a.style.textDecoration='none';
-      a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
-      titleEl.appendChild(a);
-    } else { titleEl.textContent = title; }
-
-    const dateEl = document.createElement('div');
-    dateEl.className = 'meta-date';
-    dateEl.textContent = formattedDate ? `🕒 ${formattedDate}` : '';
-
-    headerRow.appendChild(titleEl);
-    if(formattedDate) headerRow.appendChild(dateEl);
-
-    const metaEl = document.createElement('div'); 
-    metaEl.className='meta';
-    metaEl.textContent = meta;
-
-    right.appendChild(headerRow);
-    right.appendChild(metaEl);
-    card.appendChild(thumb);
-    card.appendChild(right);
-    return card;
   }
+
+  // 🕒 дата
+  let dateText = '';
+  const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
+  if(t){ dateText = t.getAttribute('datetime') || t.content || ''; }
+  else { const dateEl = wrap.querySelector('span.date, div.date'); if(dateEl) dateText = dateEl.textContent.trim(); }
+
+  let formattedDate = '', isoDate = '';
+  if(dateText){
+    try{
+      const d = new Date(dateText);
+      if(!isNaN(d)) {
+        formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+        isoDate = d.toISOString();
+      } else formattedDate = dateText;
+    }catch{ formattedDate = dateText; }
+  }
+
+  // 🌐 източник
+  let source = '';
+  try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
+  const meta = source || '';
+
+  // 🏷️ категория
+  const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
+  const category = breadcrumb ? breadcrumb.textContent.trim() : '';
+
+  // render
+  const card = document.createElement('div'); 
+  card.className = 'card-row';
+  if(isoDate) card.dataset.date = isoDate;
+  if(category) card.dataset.category = category;
+
+  const thumb = document.createElement('div'); 
+  thumb.className = 'thumb';
+  if(imgSrc){ const im=document.createElement('img'); im.loading='lazy'; im.src=imgSrc; thumb.appendChild(im); }
+  else { thumb.textContent='no image'; }
+
+  const right = document.createElement('div'); right.className = 'right-side';
+  const headerRow = document.createElement('div'); headerRow.className = 'header-row';
+
+  const titleEl = document.createElement('h3'); titleEl.className='title';
+  if(link){
+    const a = document.createElement('a');
+    a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
+    a.style.color='inherit'; a.style.textDecoration='none';
+    a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
+    titleEl.appendChild(a);
+  } else { titleEl.textContent = title; }
+
+  const dateEl = document.createElement('div');
+  dateEl.className = 'meta-date';
+  dateEl.textContent = formattedDate ? `🕒 ${formattedDate}` : '';
+
+  headerRow.appendChild(titleEl);
+  if(formattedDate) headerRow.appendChild(dateEl);
+
+  const metaEl = document.createElement('div');
+  metaEl.className='meta';
+  metaEl.textContent = meta + (category ? ` • ${category}` : '');
+
+  right.appendChild(headerRow);
+  right.appendChild(metaEl);
+  card.appendChild(thumb);
+  card.appendChild(right);
+  return card;
+}
+
 
   function renderCardsFromDoc(doc, baseHref){
     const raw = selectRawBlocks(doc);
