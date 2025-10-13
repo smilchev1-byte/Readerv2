@@ -5,18 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Моите новини — извличане и плосък дизайн</title>
 <link rel="stylesheet" href="style.css">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1418">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
   <div class="app">
-    <!-- Off-canvas sidebar -->
-    <aside id="sidebar" aria-label="Навигация" aria-hidden="false">
+    <!-- Off-canvas sidebar (solid bg на мобилно) -->
+    <aside id="sidebar" aria-label="Навигация">
       <div class="brand">📰 Моите новини</div>
       <div style="color:#999">Зареждам меню...</div>
-      <!-- theme toggle може да е в sidebar.html; тук само контейнерът -->
     </aside>
 
     <main>
-      <!-- Top bar (mobile-friendly) -->
+      <!-- Pull-to-refresh indicator -->
+      <div id="ptr" aria-hidden="true">
+        <div class="ptr-inner">
+          <span class="ptr-icon">↓</span>
+          <span class="ptr-text">Изтегли за обновяване</span>
+        </div>
+      </div>
+
+      <!-- Top bar -->
       <div class="top">
         <button id="menuToggle" class="icon-btn" aria-label="Отвори меню">☰</button>
 
@@ -36,7 +50,7 @@
 
       <div id="status" class="status"></div>
 
-      <!-- Filters: time + category (mobile scrollable) -->
+      <!-- Filters -->
       <section class="filters">
         <div class="time-filters scroller">
           <button class="chip" data-filter="today">Днес</button>
@@ -52,9 +66,11 @@
         </div>
       </section>
 
+      <!-- News list -->
       <div id="list" class="list">
         <div class="placeholder">
-          Използвай URL/Качи/Постави HTML или <b>менюто</b>. Ще се извадят <code>div.card.pt-4.pb-4.ad0</code> и <code>div.card.pt-4.pb-4.ad3</code>.
+          Използвай URL/Качи/Постави HTML или <b>менюто</b>. Ще се извадят
+          <code>div.card.pt-4.pb-4.ad0</code> и <code>div.card.pt-4.pb-4.ad3</code>.
         </div>
       </div>
     </main>
@@ -98,7 +114,7 @@
     return node;
   }
 
-  // ===== Cards
+  // ===== Select & build cards
   function selectRawBlocks(doc){
     return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
   }
@@ -109,14 +125,13 @@
     sanitize(wrap);
     fixRelativeURLs(wrap, baseHref);
 
-    // thumbnail
+    // thumb
     let imgSrc = null;
     const img = wrap.querySelector('img');
     if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
 
     // title & link
-    let title = '';
-    let link = '';
+    let title = '', link = '';
     const h = wrap.querySelector('h1, h2, h3');
     if(h && h.textContent.trim()){
       title = h.textContent.trim();
@@ -124,13 +139,8 @@
       if(aInH) link = aInH.getAttribute('href');
     }else{
       const a = wrap.querySelector('a[href]');
-      if(a && a.textContent.trim()){
-        title = a.textContent.trim();
-        link = a.getAttribute('href');
-      }else{
-        const p = wrap.querySelector('p, div');
-        title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
-      }
+      if(a && a.textContent.trim()){ title = a.textContent.trim(); link = a.getAttribute('href'); }
+      else{ const p = wrap.querySelector('p, div'); title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)'; }
     }
 
     // date
@@ -143,10 +153,8 @@
     if(dateText){
       try{
         const d = new Date(dateText);
-        if(!isNaN(d)) {
-          formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-          isoDate = d.toISOString();
-        } else formattedDate = dateText;
+        if(!isNaN(d)) { formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'}); isoDate = d.toISOString(); }
+        else formattedDate = dateText;
       }catch{ formattedDate = dateText; }
     }
 
@@ -155,7 +163,7 @@
     try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
     const meta = source || '';
 
-    // category
+    // category from breadcrumb
     const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
     const category = breadcrumb ? breadcrumb.textContent.trim() : '';
 
@@ -200,7 +208,7 @@
     return card;
   }
 
-  // ===== Import
+  // ===== Importers
   async function importURL(url){
     if(!url){ setStatus('Моля, въведи URL.'); return; }
     setStatus('⏳ Тегля страница през allorigins…');
@@ -217,38 +225,28 @@
     }
   }
 
-  $('#btnFetch').addEventListener('click',()=> importURL($('#urlInput').value.trim()));
-  $('#fileInput').addEventListener('change', async (e)=>{
-    const f = e.target.files[0];
-    if(!f) return;
-    const html = await f.text();
-    const doc = parseHTML(html);
-    renderCardsFromDoc(doc, 'file:///'+(f.name||'index.html'));
-    setStatus('✅ Качен файл.');
-    e.target.value='';
+  document.getElementById('btnFetch').addEventListener('click',()=> importURL(document.getElementById('urlInput').value.trim()));
+  document.getElementById('fileInput').addEventListener('change', async (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    const html = await f.text(); const doc = parseHTML(html);
+    renderCardsFromDoc(doc, 'file:///'+(f.name||'index.html')); setStatus('✅ Качен файл.'); e.target.value='';
   });
-  $('#btnPaste').addEventListener('click', async ()=>{
-    try{
-      const text = await navigator.clipboard.readText();
-      if(!text || !text.includes('<')){ setStatus('Буферът не съдържа HTML.'); return; }
-      const doc = parseHTML(text);
-      renderCardsFromDoc(doc, location.href);
-      setStatus('✅ Поставен HTML.');
+  document.getElementById('btnPaste').addEventListener('click', async ()=>{
+    try{ const text = await navigator.clipboard.readText(); if(!text || !text.includes('<')){ setStatus('Буферът не съдържа HTML.'); return; }
+      const doc = parseHTML(text); renderCardsFromDoc(doc, location.href); setStatus('✅ Поставен HTML.');
     }catch(e){ setStatus('❌ Нямам достъп до клипборда.'); }
   });
 
-  // ===== Sidebar load + mobile toggle
+  // ===== Sidebar load + mobile toggle (solid bg на мобилно)
   async function loadSidebar(){
     try{
       const html = await fetch('sidebar.html').then(r=>r.text());
       sidebarEl.innerHTML = html;
-      // click handler for data-url
       sidebarEl.addEventListener('click', (ev)=>{
         const target = ev.target.closest('[data-url]');
         if(!target) return;
         ev.preventDefault();
         importURL(target.getAttribute('data-url'));
-        // close drawer on mobile
         document.body.classList.remove('sidebar-open');
       });
     }catch(e){
@@ -257,23 +255,18 @@
   }
   loadSidebar();
 
-  const menuToggle = $('#menuToggle');
-  menuToggle.addEventListener('click', ()=> {
-    document.body.classList.toggle('sidebar-open');
-  });
-  // затваряне при тап на backdrop (ползваме самия main като клик зона)
+  const menuToggle = document.getElementById('menuToggle');
+  menuToggle.addEventListener('click', ()=> document.body.classList.toggle('sidebar-open'));
   document.addEventListener('click', (e)=>{
     if(document.body.classList.contains('sidebar-open')){
-      const sidebar = document.getElementById('sidebar');
-      if(!sidebar.contains(e.target) && !menuToggle.contains(e.target)){
-        document.body.classList.remove('sidebar-open');
-      }
+      const sb = document.getElementById('sidebar');
+      if(!sb.contains(e.target) && !menuToggle.contains(e.target)){ document.body.classList.remove('sidebar-open'); }
     }
   });
 
   // ===== Reader
-  const reader = $('.reader'), readerContent = $('#readerContent');
-  $('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; });
+  const reader = document.getElementById('reader'), readerContent = document.getElementById('readerContent');
+  document.getElementById('readerClose').addEventListener('click', ()=>{ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; });
   reader.addEventListener('click', (e)=>{ if(e.target.classList.contains('reader-backdrop')) { reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; } });
 
   function splitIntoSentenceParagraphs(text, groupSize = 3){
@@ -362,7 +355,6 @@
     categorySelect.innerHTML = '<option value="all">Всички</option>' + 
       Array.from(categories).sort().map(c=>`<option value="${c}">${c}</option>`).join('');
   }
-
   categorySelect.addEventListener('change', ()=>{
     const selected = categorySelect.value;
     document.querySelectorAll('.card-row').forEach(c=>{
@@ -381,6 +373,48 @@
     });
     populateCategories();
   }
+
+  // ===== PWA: Service Worker & Pull-to-refresh =====
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(console.error);
+  }
+  let lastSourceUrl = localStorage.getItem('lastSourceUrl') || '';
+  const rememberSource = (url)=>{ if(url){ lastSourceUrl=url; localStorage.setItem('lastSourceUrl', url);} };
+  const _importURL = importURL;
+  importURL = async function(url){ rememberSource(url); return _importURL(url); };
+  document.addEventListener('click', (e)=>{
+    const n = e.target.closest('#sidebar [data-url]');
+    if(n){ rememberSource(n.getAttribute('data-url')); }
+  }, true);
+
+  (function setupPTR(){
+    const ptr = document.getElementById('ptr');
+    const THRESHOLD = 70, MAX_PULL = 120;
+    let startY = 0, pulling = false, triggered = false;
+    const isTop = ()=> (window.scrollY === 0);
+    function onStart(e){ if(!isTop()||e.touches.length!==1) return; startY=e.touches[0].clientY; pulling=true; triggered=false; ptr.style.transition='none'; }
+    function onMove(e){
+      if(!pulling) return;
+      const dy = e.touches[0].clientY - startY;
+      if(dy <= 0){ reset(); return; }
+      e.preventDefault();
+      const pull = Math.min(dy, MAX_PULL);
+      ptr.style.transform = `translateY(${pull}px)`;
+      ptr.classList.toggle('armed', pull > THRESHOLD);
+    }
+    async function onEnd(){
+      if(!pulling) return;
+      const pulled = parseInt((ptr.style.transform.match(/translateY\((\d+)/)||[0,0])[1],10)||0;
+      if(pulled > THRESHOLD && !triggered){
+        triggered = true; ptr.classList.add('loading'); ptr.querySelector('.ptr-icon').textContent='⟳';
+        try{ if(lastSourceUrl){ await importURL(lastSourceUrl); } } finally { setTimeout(reset, 400); }
+      } else { reset(); }
+    }
+    function reset(){ pulling=false; ptr.style.transition='transform .25s ease'; ptr.style.transform='translateY(0)'; ptr.classList.remove('armed','loading'); ptr.querySelector('.ptr-icon').textContent='↓'; }
+    document.addEventListener('touchstart', onStart, {passive:false});
+    document.addEventListener('touchmove',  onMove,  {passive:false});
+    document.addEventListener('touchend',   onEnd,   {passive:true});
+  })();
 </script>
 </body>
 </html>
