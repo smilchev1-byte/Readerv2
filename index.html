@@ -8,8 +8,10 @@
 </head>
 <body>
   <div class="app">
-    <!-- Лявото меню вече се зарежда от sidebar.html -->
-    <aside id="sidebar"><div class="brand">📰 Моите новини</div><div style="color:#999">Зареждам меню...</div></aside>
+    <aside id="sidebar">
+      <div class="brand">📰 Моите новини</div>
+      <div style="color:#999">Зареждам меню...</div>
+    </aside>
 
     <main>
       <div class="top">
@@ -24,17 +26,16 @@
       </div>
       <div id="status" class="status"></div>
 
-     <section class="filters">
-  <button class="chip" data-filter="today">Днес</button>
-  <button class="chip" data-filter="week">Тази седмица</button>
-  <button class="chip" data-filter="month">Този месец</button>
-  <button class="chip" data-filter="all" class="active">Всички</button>
-</section>
-
+      <section class="filters">
+        <button class="chip" data-filter="today">Днес</button>
+        <button class="chip" data-filter="week">Тази седмица</button>
+        <button class="chip" data-filter="month">Този месец</button>
+        <button class="chip active" data-filter="all">Всички</button>
+      </section>
 
       <div id="list" class="list">
         <div class="placeholder">
-          Използвай URL/Качи/Постави HTML или **менюто вляво**. Ще се извадят <code>div.card.pt-4.pb-4.ad0</code> и <code>div.card.pt-4.pb-4.ad3</code> и ще се покажат като унифицирани карти (снимка вляво, заглавие вдясно). Клик по заглавие = **Reader view**.
+          Използвай URL/Качи/Постави HTML или <b>менюто вляво</b>. Ще се извадят <code>div.card.pt-4.pb-4.ad0</code> и <code>div.card.pt-4.pb-4.ad3</code>.
         </div>
       </div>
     </main>
@@ -50,18 +51,16 @@
           <button id="readerClose" class="btn">Затвори</button>
         </div>
       </div>
-      <div id="readerContent" class="reader-content">
-        <!-- Тук ще се визуализира articleBody -->
-      </div>
+      <div id="readerContent" class="reader-content"></div>
     </div>
   </div>
 
 <script>
-  // ===== Theme (dark by default) =====
+  // ===== Тема (тъмна по подразбиране)
   function setTheme(isDark){ document.body.classList.toggle('light', !isDark); localStorage.setItem('theme', isDark?'dark':'light'); }
   (function initTheme(){ const saved=localStorage.getItem('theme'); setTheme(saved!=='light'); })();
 
-  // ===== Helpers =====
+  // ===== Помощни функции
   const $ = s => document.querySelector(s);
   const statusEl = $('#status'), listEl = $('#list'), sidebarEl = $('#sidebar');
   function setStatus(msg){ statusEl.textContent = msg || ''; }
@@ -84,120 +83,118 @@
     return node;
   }
 
-  // ===== Карти (списък) =====
+  // ===== Карти (новини)
   function selectRawBlocks(doc){
     return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
   }
 
-function toCardElement(rawHTML, baseHref){
-  const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
-  const wrap = fragDoc.getElementById('wrap');
-  sanitize(wrap);
-  fixRelativeURLs(wrap, baseHref);
+  function toCardElement(rawHTML, baseHref){
+    const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
+    const wrap = fragDoc.getElementById('wrap');
+    sanitize(wrap);
+    fixRelativeURLs(wrap, baseHref);
 
-  // thumbnail
-  let imgSrc = null;
-  const img = wrap.querySelector('img');
-  if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
+    // thumbnail
+    let imgSrc = null;
+    const img = wrap.querySelector('img');
+    if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
 
-  // title & link
-  let title = '';
-  let link = '';
-  const h = wrap.querySelector('h1, h2, h3');
-  if(h && h.textContent.trim()){
-    title = h.textContent.trim();
-    const aInH = h.querySelector('a[href]');
-    if(aInH) link = aInH.getAttribute('href');
-  }else{
-    const a = wrap.querySelector('a[href]');
-    if(a && a.textContent.trim()){
-      title = a.textContent.trim();
-      link = a.getAttribute('href');
+    // title & link
+    let title = '';
+    let link = '';
+    const h = wrap.querySelector('h1, h2, h3');
+    if(h && h.textContent.trim()){
+      title = h.textContent.trim();
+      const aInH = h.querySelector('a[href]');
+      if(aInH) link = aInH.getAttribute('href');
     }else{
-      const p = wrap.querySelector('p, div');
-      title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
+      const a = wrap.querySelector('a[href]');
+      if(a && a.textContent.trim()){
+        title = a.textContent.trim();
+        link = a.getAttribute('href');
+      }else{
+        const p = wrap.querySelector('p, div');
+        title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
+      }
     }
-  }
 
-  // 🕒 дата
-  let dateText = '';
-  const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
-  if(t){
-    dateText = t.getAttribute('datetime') || t.content || '';
-  } else {
-    const dateEl = wrap.querySelector('span.date, div.date');
-    if(dateEl) dateText = dateEl.textContent.trim();
-  }
-
-  let formattedDate = '', isoDate = '';
-  if(dateText){
-    try{
-      const d = new Date(dateText);
-      if(!isNaN(d)) {
-        formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-        isoDate = d.toISOString();
-      } else formattedDate = dateText;
-    }catch{
-      formattedDate = dateText;
+    // 🕒 дата
+    let dateText = '';
+    const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
+    if(t){
+      dateText = t.getAttribute('datetime') || t.content || '';
+    } else {
+      const dateEl = wrap.querySelector('span.date, div.date');
+      if(dateEl) dateText = dateEl.textContent.trim();
     }
+
+    let formattedDate = '', isoDate = '';
+    if(dateText){
+      try{
+        const d = new Date(dateText);
+        if(!isNaN(d)) {
+          formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+          isoDate = d.toISOString();
+        } else formattedDate = dateText;
+      }catch{
+        formattedDate = dateText;
+      }
+    }
+
+    // източник
+    let source = '';
+    try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
+    const meta = source || '';
+
+    // render
+    const card = document.createElement('div'); 
+    card.className = 'card-row';
+    if(isoDate) card.dataset.date = isoDate;
+
+    const thumb = document.createElement('div'); 
+    thumb.className = 'thumb';
+    if(imgSrc){ 
+      const im=document.createElement('img'); 
+      im.loading='lazy'; 
+      im.src=imgSrc; 
+      thumb.appendChild(im); 
+    } else { 
+      thumb.textContent='no image'; 
+    }
+
+    const right = document.createElement('div');
+    right.className = 'right-side';
+
+    const headerRow = document.createElement('div');
+    headerRow.className = 'header-row';
+
+    const titleEl = document.createElement('h3'); 
+    titleEl.className='title';
+    if(link){
+      const a = document.createElement('a');
+      a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
+      a.style.color='inherit'; a.style.textDecoration='none';
+      a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
+      titleEl.appendChild(a);
+    } else { titleEl.textContent = title; }
+
+    const dateEl = document.createElement('div');
+    dateEl.className = 'meta-date';
+    dateEl.textContent = formattedDate ? `🕒 ${formattedDate}` : '';
+
+    headerRow.appendChild(titleEl);
+    if(formattedDate) headerRow.appendChild(dateEl);
+
+    const metaEl = document.createElement('div'); 
+    metaEl.className='meta';
+    metaEl.textContent = meta;
+
+    right.appendChild(headerRow);
+    right.appendChild(metaEl);
+    card.appendChild(thumb);
+    card.appendChild(right);
+    return card;
   }
-
-  // източник
-  let source = '';
-  try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
-  const meta = source || '';
-
-  // render
-  const card = document.createElement('div'); 
-  card.className = 'card-row';
-  if(isoDate) card.dataset.date = isoDate;
-
-  const thumb = document.createElement('div'); 
-  thumb.className = 'thumb';
-  if(imgSrc){ 
-    const im=document.createElement('img'); 
-    im.loading='lazy'; 
-    im.src=imgSrc; 
-    thumb.appendChild(im); 
-  } else { 
-    thumb.textContent='no image'; 
-  }
-
-  const right = document.createElement('div');
-  right.className = 'right-side';
-
-  const headerRow = document.createElement('div');
-  headerRow.className = 'header-row';
-
-  const titleEl = document.createElement('h3'); 
-  titleEl.className='title';
-  if(link){
-    const a = document.createElement('a');
-    a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
-    a.style.color='inherit'; a.style.textDecoration='none';
-    a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
-    titleEl.appendChild(a);
-  } else { titleEl.textContent = title; }
-
-  const dateEl = document.createElement('div');
-  dateEl.className = 'meta-date';
-  dateEl.textContent = formattedDate ? `🕒 ${formattedDate}` : '';
-
-  headerRow.appendChild(titleEl);
-  if(formattedDate) headerRow.appendChild(dateEl);
-
-  const metaEl = document.createElement('div'); 
-  metaEl.className='meta';
-  metaEl.textContent = meta;
-
-  right.appendChild(headerRow);
-  right.appendChild(metaEl);
-  card.appendChild(thumb);
-  card.appendChild(right);
-  return card;
-}
-
-
 
   function renderCardsFromDoc(doc, baseHref){
     const raw = selectRawBlocks(doc);
@@ -209,7 +206,7 @@ function toCardElement(rawHTML, baseHref){
     });
   }
 
-  // ===== Импорт страница (както полето) =====
+  // ===== Импорт страница
   async function importURL(url){
     if(!url){ setStatus('Моля, въведи URL.'); return; }
     setStatus('⏳ Тегля страница през allorigins…');
@@ -226,11 +223,11 @@ function toCardElement(rawHTML, baseHref){
     }
   }
 
-  // Полето „Въведи URL“
-  document.getElementById('btnFetch').addEventListener('click',()=> importURL(document.getElementById('urlInput').value.trim()));
+  // URL бутон
+  $('#btnFetch').addEventListener('click',()=> importURL($('#urlInput').value.trim()));
 
   // Качи .html
-  document.getElementById('fileInput').addEventListener('change', async (e)=>{
+  $('#fileInput').addEventListener('change', async (e)=>{
     setStatus('');
     const f = e.target.files[0];
     if(!f) return;
@@ -242,7 +239,7 @@ function toCardElement(rawHTML, baseHref){
   });
 
   // Постави HTML
-  document.getElementById('btnPaste').addEventListener('click', async ()=>{
+  $('#btnPaste').addEventListener('click', async ()=>{
     setStatus('');
     try{
       const text = await navigator.clipboard.readText();
@@ -255,28 +252,23 @@ function toCardElement(rawHTML, baseHref){
     }
   });
 
-  // ===== Sidebar: зареждане от отделен файл + action =====
+  // ===== Sidebar зареждане
   async function loadSidebar(){
     try{
       const html = await fetch('sidebar.html').then(r=>r.text());
       sidebarEl.innerHTML = html;
-
-      // тъмна/светла тема чекбокс (по избор в sidebar.html) — ако присъства
       const themeToggle = sidebarEl.querySelector('#themeToggle');
       if(themeToggle){
         const saved=localStorage.getItem('theme');
         themeToggle.checked = (saved!=='light');
         themeToggle.addEventListener('change', e=> setTheme(e.target.checked));
       }
-
-      // действие при клик на елемент с data-url
       sidebarEl.addEventListener('click', (ev)=>{
         const target = ev.target.closest('[data-url]');
         if(!target) return;
         ev.preventDefault();
         const url = target.getAttribute('data-url');
         importURL(url);
-        // маркирай активна категория, ако е .cat
         sidebarEl.querySelectorAll('.cat.active').forEach(x=>x.classList.remove('active'));
         if(target.classList.contains('cat')) target.classList.add('active');
       });
@@ -286,7 +278,7 @@ function toCardElement(rawHTML, baseHref){
   }
   loadSidebar();
 
-  // ===== Reader view (твоята логика за articleBody) =====
+  // ===== Reader view =====
   const reader = $('#reader'), readerContent = $('#readerContent');
   $('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; readerContent.innerHTML=''; });
   reader.addEventListener('click', (e)=>{ if(e.target.classList.contains('reader-backdrop')) { reader.style.display='none'; readerContent.innerHTML=''; } });
@@ -302,88 +294,89 @@ function toCardElement(rawHTML, baseHref){
     return groups;
   }
 
- async function openReader(url){
-  setStatus('⏳ Зареждам статия за четене…');
-  try{
-    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res = await fetch(prox, {mode:'cors'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const html = await res.text();
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    // снимка от <picture.img--title.landscape>
-    const pictureEl = doc.querySelector('picture.img--title.landscape');
-    let imageHTML = pictureEl ? pictureEl.outerHTML : '';
-
-    // 🔍 търсим и дата
-    let dateText = '';
-    // 1) опитваме от JSON-LD
-    const ldJsonMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-    let articleText = null;
-    if (ldJsonMatches){
-      for (let match of ldJsonMatches){
-        try{
-          const jsonText = match.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
-          const data = JSON.parse(jsonText);
-          const pickDate = (obj)=>{
-            if(!obj) return null;
-            return obj.dateModified || obj.datePublished || null;
-          };
-          if (Array.isArray(data)){
-            for (let item of data){
-              if (item.articleBody){
-                articleText = item.articleBody;
-                dateText = pickDate(item);
-                break;
+  async function openReader(url){
+    setStatus('⏳ Зареждам статия за четене…');
+    try{
+      const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      const res = await fetch(prox, {mode:'cors'});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const html = await res.text();
+      const doc = parseHTML(html);
+      const pictureEl = doc.querySelector('picture.img--title.landscape');
+      let imageHTML = pictureEl ? pictureEl.outerHTML : '';
+      let dateText = '';
+      const ldJsonMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+      let articleText = null;
+      if (ldJsonMatches){
+        for (let match of ldJsonMatches){
+          try{
+            const jsonText = match.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
+            const data = JSON.parse(jsonText);
+            const pickDate = (obj)=> obj?.dateModified || obj?.datePublished || null;
+            if (Array.isArray(data)){
+              for (let item of data){
+                if (item.articleBody){ articleText = item.articleBody; dateText = pickDate(item); break; }
               }
-            }
-          } else if (data.articleBody){
-            articleText = data.articleBody;
-            dateText = pickDate(data);
-          }
-        }catch(e){}
-        if(articleText) break;
+            } else if (data.articleBody){ articleText = data.articleBody; dateText = pickDate(data); }
+          }catch(e){}
+          if(articleText) break;
+        }
       }
-    }
-
-    // 2) fallback: опит да намерим <time> или <meta property="article:published_time">
-    if(!dateText){
-      const t = doc.querySelector('time[datetime]') || doc.querySelector('meta[property="article:published_time"]');
-      if(t){
-        dateText = t.getAttribute('datetime') || t.content || '';
+      if(!dateText){
+        const t = doc.querySelector('time[datetime]') || doc.querySelector('meta[property="article:published_time"]');
+        if(t){ dateText = t.getAttribute('datetime') || t.content || ''; }
       }
-    }
-
-    // 3) формат на датата
-    let formattedDate = '';
-    if(dateText){
-      try{
-        const d = new Date(dateText);
-        if(!isNaN(d)) formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-      }catch{}
-    }
-
-    // показваме в reader
-    readerContent.innerHTML = '';
-    if(articleText){
-      const grouped = splitIntoSentenceParagraphs(articleText, 3);
-      const formatted = grouped.map((g,i)=> `<p class="${i===0?'lead':''}">${g}</p>`).join('');
-      const dateHTML = formattedDate ? `<div class="reader-date">🕒 ${formattedDate}</div>` : '';
-      readerContent.innerHTML = `${imageHTML}${dateHTML}${formatted}`;
-      reader.style.display = 'block';
-      setStatus('✅ Четецът е готов.');
-    }else{
-      setStatus('❌ Не е намерено "articleBody" за тази статия.');
-      alert('Не е намерено "articleBody" за тази статия.');
-    }
-  }catch(e){
-    setStatus('❌ Грешка при отваряне на четеца: '+e.message);
-    alert('Грешка при четеца: '+e.message);
+      let formattedDate = '';
+      if(dateText){
+        try{
+          const d = new Date(dateText);
+          if(!isNaN(d)) formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+        }catch{}
+      }
+      readerContent.innerHTML = '';
+      if(articleText){
+        const grouped = splitIntoSentenceParagraphs(articleText, 3);
+        const formatted = grouped.map((g,i)=> `<p class="${i===0?'lead':''}">${g}</p>`).join('');
+        const dateHTML = formattedDate ? `<div class="reader-date">🕒 ${formattedDate}</div>` : '';
+        readerContent.innerHTML = `${imageHTML}${dateHTML}${formatted}`;
+        reader.style.display = 'block';
+        setStatus('✅ Четецът е готов.');
+      }else{
+        setStatus('❌ Не е намерено "articleBody".');
+      }
+    }catch(e){ setStatus('❌ Грешка: '+e.message); }
   }
-}
 
+  // ===== Филтри по време =====
+  const filterButtons = document.querySelectorAll('.chip');
+  filterButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterButtons.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      applyDateFilter(btn.dataset.filter);
+    });
+  });
+
+  function applyDateFilter(filter){
+    const now = new Date();
+    const cards = document.querySelectorAll('.card-row');
+    cards.forEach(card => {
+      const dateStr = card.dataset.date;
+      if(!dateStr){ card.style.display = ''; return; }
+      const date = new Date(dateStr);
+      let show = true;
+      if(filter === 'today'){
+        show = date.toDateString() === now.toDateString();
+      } else if(filter === 'week'){
+        const diff = (now - date) / (1000*60*60*24);
+        show = diff <= 7;
+      } else if(filter === 'month'){
+        const diff = (now - date) / (1000*60*60*24);
+        show = diff <= 31;
+      }
+      card.style.display = show ? '' : 'none';
+    });
+  }
 </script>
 </body>
 </html>
