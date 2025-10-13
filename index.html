@@ -2,32 +2,43 @@
 <html lang="bg">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Моите новини — извличане и плосък дизайн</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
-    <aside id="sidebar">
+    <!-- Off-canvas sidebar -->
+    <aside id="sidebar" aria-label="Навигация" aria-hidden="false">
       <div class="brand">📰 Моите новини</div>
       <div style="color:#999">Зареждам меню...</div>
+      <!-- theme toggle може да е в sidebar.html; тук само контейнерът -->
     </aside>
 
     <main>
+      <!-- Top bar (mobile-friendly) -->
       <div class="top">
+        <button id="menuToggle" class="icon-btn" aria-label="Отвори меню">☰</button>
+
         <form class="import" onsubmit="return false;">
-          <input id="urlInput" type="url" placeholder="Въведи URL (ще се извлече през allorigins)">
+          <input id="urlInput" type="url" inputmode="url" placeholder="Въведи URL (allorigins)" autocomplete="off">
           <button id="btnFetch" class="btn primary">Извлечи</button>
         </form>
-        <label class="btn" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-          Качи .html <input id="fileInput" type="file" accept=".html,.htm,text/html" hidden>
-        </label>
-        <button id="btnPaste" class="btn">Постави HTML</button>
+
+        <div class="import-actions">
+          <label class="btn file-btn">
+            Качи .html
+            <input id="fileInput" type="file" accept=".html,.htm,text/html" hidden>
+          </label>
+          <button id="btnPaste" class="btn">Постави HTML</button>
+        </div>
       </div>
+
       <div id="status" class="status"></div>
 
+      <!-- Filters: time + category (mobile scrollable) -->
       <section class="filters">
-        <div class="time-filters">
+        <div class="time-filters scroller">
           <button class="chip" data-filter="today">Днес</button>
           <button class="chip" data-filter="week">Тази седмица</button>
           <button class="chip" data-filter="month">Този месец</button>
@@ -43,14 +54,14 @@
 
       <div id="list" class="list">
         <div class="placeholder">
-          Използвай URL/Качи/Постави HTML или <b>менюто вляво</b>. Ще се извадят <code>div.card.pt-4.pb-4.ad0</code> и <code>div.card.pt-4.pb-4.ad3</code>.
+          Използвай URL/Качи/Постави HTML или <b>менюто</b>. Ще се извадят <code>div.card.pt-4.pb-4.ad0</code> и <code>div.card.pt-4.pb-4.ad3</code>.
         </div>
       </div>
     </main>
   </div>
 
   <!-- Reader overlay -->
-  <div id="reader" style="display:none">
+  <div id="reader" class="reader" style="display:none" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="reader-backdrop"></div>
     <div class="reader-panel">
       <div class="reader-bar">
@@ -64,11 +75,11 @@
   </div>
 
 <script>
-  // ===== Тема (тъмна по подразбиране)
+  // ===== Theme (dark by default)
   function setTheme(isDark){ document.body.classList.toggle('light', !isDark); localStorage.setItem('theme', isDark?'dark':'light'); }
   (function initTheme(){ const saved=localStorage.getItem('theme'); setTheme(saved!=='light'); })();
 
-  // ===== Помощни функции
+  // ===== Helpers
   const $ = s => document.querySelector(s);
   const statusEl = $('#status'), listEl = $('#list'), sidebarEl = $('#sidebar');
   function setStatus(msg){ statusEl.textContent = msg || ''; }
@@ -76,11 +87,7 @@
   function placeholder(msg){ const d=document.createElement('div'); d.className='placeholder'; d.innerHTML=msg; listEl.appendChild(d); }
   function parseHTML(html){ return new DOMParser().parseFromString(html,'text/html'); }
   function absURL(base, rel){ try{ return new URL(rel, base).href }catch{ return rel } }
-
-  function sanitize(node){
-    node.querySelectorAll('script,style,iframe,object,embed,noscript').forEach(n=>n.remove());
-    return node;
-  }
+  function sanitize(node){ node.querySelectorAll('script,style,iframe,object,embed,noscript').forEach(n=>n.remove()); return node; }
   function fixRelativeURLs(node, baseHref){
     node.querySelectorAll('[href]').forEach(a=> a.setAttribute('href', absURL(baseHref, a.getAttribute('href'))));
     node.querySelectorAll('[src]').forEach(el=> el.setAttribute('src', absURL(baseHref, el.getAttribute('src'))));
@@ -91,6 +98,7 @@
     return node;
   }
 
+  // ===== Cards
   function selectRawBlocks(doc){
     return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
   }
@@ -125,7 +133,7 @@
       }
     }
 
-    // 🕒 дата
+    // date
     let dateText = '';
     const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
     if(t){ dateText = t.getAttribute('datetime') || t.content || ''; }
@@ -142,12 +150,12 @@
       }catch{ formattedDate = dateText; }
     }
 
-    // 🌐 източник
+    // source
     let source = '';
     try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
     const meta = source || '';
 
-    // 🏷️ категория
+    // category
     const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
     const category = breadcrumb ? breadcrumb.textContent.trim() : '';
 
@@ -192,7 +200,7 @@
     return card;
   }
 
-  // ===== Извличане от URL / файл / HTML =====
+  // ===== Import
   async function importURL(url){
     if(!url){ setStatus('Моля, въведи URL.'); return; }
     setStatus('⏳ Тегля страница през allorigins…');
@@ -229,16 +237,19 @@
     }catch(e){ setStatus('❌ Нямам достъп до клипборда.'); }
   });
 
-  // ===== Sidebar
+  // ===== Sidebar load + mobile toggle
   async function loadSidebar(){
     try{
       const html = await fetch('sidebar.html').then(r=>r.text());
       sidebarEl.innerHTML = html;
+      // click handler for data-url
       sidebarEl.addEventListener('click', (ev)=>{
         const target = ev.target.closest('[data-url]');
         if(!target) return;
         ev.preventDefault();
         importURL(target.getAttribute('data-url'));
+        // close drawer on mobile
+        document.body.classList.remove('sidebar-open');
       });
     }catch(e){
       sidebarEl.innerHTML = '<div class="brand">📰 Моите новини</div><div class="placeholder">Не успях да заредя sidebar.html</div>';
@@ -246,10 +257,24 @@
   }
   loadSidebar();
 
+  const menuToggle = $('#menuToggle');
+  menuToggle.addEventListener('click', ()=> {
+    document.body.classList.toggle('sidebar-open');
+  });
+  // затваряне при тап на backdrop (ползваме самия main като клик зона)
+  document.addEventListener('click', (e)=>{
+    if(document.body.classList.contains('sidebar-open')){
+      const sidebar = document.getElementById('sidebar');
+      if(!sidebar.contains(e.target) && !menuToggle.contains(e.target)){
+        document.body.classList.remove('sidebar-open');
+      }
+    }
+  });
+
   // ===== Reader
-  const reader = $('#reader'), readerContent = $('#readerContent');
-  $('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; readerContent.innerHTML=''; });
-  reader.addEventListener('click', (e)=>{ if(e.target.classList.contains('reader-backdrop')) { reader.style.display='none'; readerContent.innerHTML=''; } });
+  const reader = $('.reader'), readerContent = $('#readerContent');
+  $('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; });
+  reader.addEventListener('click', (e)=>{ if(e.target.classList.contains('reader-backdrop')) { reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; } });
 
   function splitIntoSentenceParagraphs(text, groupSize = 3){
     const sentenceRegex = /[^.!?]+[.!?]+["']?\s*/g;
@@ -287,11 +312,15 @@
       }
       if(!dateText){const t=doc.querySelector('time[datetime]');if(t)dateText=t.getAttribute('datetime');}
       let fDate='';if(dateText){try{const d=new Date(dateText);if(!isNaN(d))fDate=d.toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'});}catch{}}
-      if(articleText){const g=splitIntoSentenceParagraphs(articleText,3);readerContent.innerHTML=`${imgHTML}${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}${g.map((x,i)=>`<p class="${i===0?'lead':''}">${x}</p>`).join('')}`;reader.style.display='block';}
-    }catch(e){setStatus('❌ Грешка: '+e.message);}
+      if(articleText){
+        const g=splitIntoSentenceParagraphs(articleText,3);
+        readerContent.innerHTML=`${imgHTML}${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}${g.map((x,i)=>`<p class="${i===0?'lead':''}">${x}</p>`).join('')}`;
+        reader.style.display='block'; reader.setAttribute('aria-hidden','false');
+      }
+    }catch(e){ setStatus('❌ Грешка: '+e.message); }
   }
 
-  // ===== Филтри по време
+  // ===== Time filters
   const filterButtons = document.querySelectorAll('.chip');
   filterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -322,7 +351,7 @@
     });
   }
 
-  // ===== Филтриране по категория =====
+  // ===== Category filter
   const categorySelect = document.getElementById('categorySelect');
   function populateCategories(){
     const categories = new Set();
@@ -331,7 +360,7 @@
       if(cat) categories.add(cat);
     });
     categorySelect.innerHTML = '<option value="all">Всички</option>' + 
-      Array.from(categories).map(c=>`<option value="${c}">${c}</option>`).join('');
+      Array.from(categories).sort().map(c=>`<option value="${c}">${c}</option>`).join('');
   }
 
   categorySelect.addEventListener('change', ()=>{
