@@ -15,16 +15,21 @@ body.light{
 }
 .app{display:grid; grid-template-columns: 240px 1fr; width:100%}
 
-/* Sidebar (зарежда се от sidebar.html) */
+/* Sidebar */
 aside{
   background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
   border-right:1px solid var(--border);
   padding:20px;
   position:sticky; top:0; height:100vh;
-  display:flex; flex-direction:column; gap:16px;
+  display:flex; flex-direction:column;
 }
 .brand{font-weight:700; text-align:center; letter-spacing:.2px}
-.cats{display:flex; flex-direction:column; gap:8px; margin-top:6px}
+.cats{
+  flex:1;
+  overflow:auto;
+  padding-bottom:20px;
+  display:flex; flex-direction:column; gap:8px; margin-top:6px;
+}
 .cat{
   border:none; background:transparent; color:var(--text);
   padding:10px 12px; border-radius:10px; cursor:pointer; text-align:center;
@@ -50,30 +55,39 @@ main{padding:22px 24px; overflow:auto}
 .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
 .btn:disabled{opacity:.6; cursor:not-allowed}
 .status{font-size:13px; color:var(--muted); margin:6px 2px}
-.filters{display:flex; gap:8px; margin:14px 0}
+.filters{display:flex; gap:8px; margin:14px 0; flex-wrap:wrap}
 .chip{
   padding:8px 12px; border-radius:999px; background:var(--chip);
   color:var(--muted); border:1px solid var(--border); cursor:pointer;
 }
 .chip.active{outline:2px solid var(--accent); color:#cfe2ff}
 
-/* Cards list */
+/* Cards */
 .list{display:flex; flex-direction:column; gap:12px}
 .card-row{
-  display:grid; grid-template-columns: 88px 1fr; gap:12px;
-  padding:12px; border:1px solid var(--border); border-radius:var(--radius);
+  display:grid;
+  grid-template-columns:88px 1fr;
+  gap:12px;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
   background:var(--card);
 }
 .thumb{
-  width:88px; height:66px; border-radius:10px; background:#1f2a33; overflow:hidden; display:flex; align-items:center; justify-content:center;
+  width:88px; height:66px;
+  border-radius:10px; background:#1f2a33;
+  overflow:hidden; display:flex; align-items:center; justify-content:center;
   font-size:12px; color:#9fb1bf;
 }
 .thumb img{width:100%; height:100%; object-fit:cover}
-.title{font-weight:600; margin:0 0 2px 0; font-size:15px}
+.right-side{display:flex; flex-direction:column; justify-content:space-between}
+.header-row{display:flex; justify-content:space-between; align-items:flex-start; gap:8px}
+.title{font-weight:600; margin:0; font-size:15px}
+.meta-date{font-size:13px; color:var(--muted); text-align:right; white-space:nowrap}
 .meta{font-size:12px; color:var(--muted)}
 .placeholder{padding:14px; border:1px dashed var(--border); border-radius:10px; color:var(--muted); background:transparent}
 
-/* Reader overlay */
+/* Reader */
 #reader{position:fixed; inset:0; display:none; z-index:9999}
 .reader-backdrop{position:absolute; inset:0; background:rgba(0,0,0,.55)}
 .reader-panel{
@@ -84,7 +98,8 @@ main{padding:22px 24px; overflow:auto}
 }
 .reader-bar{
   position:sticky; top:0; display:flex; align-items:center; justify-content:space-between;
-  padding:12px 14px; background:var(--panel); border-bottom:1px solid var(--border); border-top-left-radius:16px; border-top-right-radius:16px;
+  padding:12px 14px; background:var(--panel); border-bottom:1px solid var(--border);
+  border-top-left-radius:16px; border-top-right-radius:16px;
 }
 .reader-title{font-weight:600}
 .reader-content{padding:18px}
@@ -92,6 +107,7 @@ main{padding:22px 24px; overflow:auto}
 .reader-content p.lead{font-weight:700; font-size:20px}
 .reader-content picture{display:block; margin-bottom:16px}
 .reader-content img{max-width:100%; border-radius:10px}
+.reader-date{font-size:14px; color:var(--muted); margin-bottom:20px; text-align:right}
 
 @media (max-width: 900px){
   .app{grid-template-columns: 1fr}
@@ -99,45 +115,3 @@ main{padding:22px 24px; overflow:auto}
   .cats{flex-direction:row; flex-wrap:wrap; justify-content:center}
   .theme{margin-top:0}
 }
-
-/* --- обновено --- */
-aside {
-  background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
-  border-right:1px solid var(--border);
-  padding:20px;
-  position:sticky; top:0; height:100vh;
-  display:flex; flex-direction:column;
-}
-
-/* скролируемо меню */
-.cats {
-  flex:1;
-  overflow:auto;
-  padding-bottom:20px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  margin-top:6px;
-}
-
-/* --- Reader overlay --- */
-.reader-content p{margin:0 0 1.2em 0; font-size:18px; line-height:1.65}
-.reader-content p.lead{font-weight:700; font-size:20px}
-.reader-content picture{display:block; margin-bottom:16px}
-.reader-content img{max-width:100%; border-radius:10px}
-
-/* ✨ ново: стил за дата */
-.reader-date{
-  font-size:14px;
-  color:var(--muted);
-  margin-bottom:20px;
-  text-align:right;
-}
-
-.meta-date {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 2px 0;
-}
-
-
