@@ -88,65 +88,97 @@
   }
 
   function toCardElement(rawHTML, baseHref){
-    const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
-    const wrap = fragDoc.getElementById('wrap');
-    sanitize(wrap);
-    fixRelativeURLs(wrap, baseHref);
+  const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
+  const wrap = fragDoc.getElementById('wrap');
+  sanitize(wrap);
+  fixRelativeURLs(wrap, baseHref);
 
-    // thumbnail
-    let imgSrc = null;
-    const img = wrap.querySelector('img');
-    if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
+  // thumbnail
+  let imgSrc = null;
+  const img = wrap.querySelector('img');
+  if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
 
-    // title & link
-    let title = '';
-    let link = '';
-    const h = wrap.querySelector('h1, h2, h3');
-    if(h && h.textContent.trim()){
-      title = h.textContent.trim();
-      const aInH = h.querySelector('a[href]');
-      if(aInH) link = aInH.getAttribute('href');
+  // title & link
+  let title = '';
+  let link = '';
+  const h = wrap.querySelector('h1, h2, h3');
+  if(h && h.textContent.trim()){
+    title = h.textContent.trim();
+    const aInH = h.querySelector('a[href]');
+    if(aInH) link = aInH.getAttribute('href');
+  }else{
+    const a = wrap.querySelector('a[href]');
+    if(a && a.textContent.trim()){
+      title = a.textContent.trim();
+      link = a.getAttribute('href');
     }else{
-      const a = wrap.querySelector('a[href]');
-      if(a && a.textContent.trim()){
-        title = a.textContent.trim();
-        link = a.getAttribute('href');
-      }else{
-        const p = wrap.querySelector('p, div');
-        title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
-      }
+      const p = wrap.querySelector('p, div');
+      title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
     }
-
-    // source
-    let source = '';
-    try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
-    const meta = source || '';
-
-    // render
-    const card = document.createElement('div'); card.className = 'card-row';
-    const thumb = document.createElement('div'); thumb.className = 'thumb';
-    if(imgSrc){ const im=document.createElement('img'); im.loading='lazy'; im.src=imgSrc; thumb.appendChild(im); } else { thumb.textContent='no image'; }
-
-    const right = document.createElement('div');
-    const titleEl = document.createElement('h3'); titleEl.className='title';
-
-    if(link){
-      const a = document.createElement('a');
-      a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
-      a.style.color='inherit'; a.style.textDecoration='none';
-      // >>> Intercept за Reader view:
-      a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
-      titleEl.appendChild(a);
-    } else {
-      titleEl.textContent = title;
-    }
-
-    const metaEl = document.createElement('div'); metaEl.className='meta'; metaEl.textContent = meta;
-
-    right.appendChild(titleEl); right.appendChild(metaEl);
-    card.appendChild(thumb); card.appendChild(right);
-    return card;
   }
+
+  // 🕒 извличане на дата
+  let dateText = '';
+  const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
+  if(t){
+    dateText = t.getAttribute('datetime') || t.content || '';
+  } else {
+    const dateEl = wrap.querySelector('span.date, div.date');
+    if(dateEl) dateText = dateEl.textContent.trim();
+  }
+
+  let formattedDate = '';
+  if(dateText){
+    try{
+      const d = new Date(dateText);
+      if(!isNaN(d)) formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+      else formattedDate = dateText; // ако не се парсне, показваме оригинала
+    }catch{
+      formattedDate = dateText;
+    }
+  }
+
+  // source
+  let source = '';
+  try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
+  const meta = source || '';
+
+  // render
+  const card = document.createElement('div'); card.className = 'card-row';
+  const thumb = document.createElement('div'); thumb.className = 'thumb';
+  if(imgSrc){ const im=document.createElement('img'); im.loading='lazy'; im.src=imgSrc; thumb.appendChild(im); } else { thumb.textContent='no image'; }
+
+  const right = document.createElement('div');
+  const titleEl = document.createElement('h3'); titleEl.className='title';
+  if(link){
+    const a = document.createElement('a');
+    a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
+    a.style.color='inherit'; a.style.textDecoration='none';
+    a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
+    titleEl.appendChild(a);
+  } else {
+    titleEl.textContent = title;
+  }
+
+  // ново: дата
+  const dateEl = document.createElement('div');
+  dateEl.className = 'meta-date';
+  dateEl.textContent = formattedDate || '';
+
+  // домейн
+  const metaEl = document.createElement('div'); 
+  metaEl.className='meta';
+  metaEl.textContent = meta;
+
+  right.appendChild(titleEl);
+  if(formattedDate) right.appendChild(dateEl);
+  right.appendChild(metaEl);
+
+  card.appendChild(thumb);
+  card.appendChild(right);
+  return card;
+}
+
 
   function renderCardsFromDoc(doc, baseHref){
     const raw = selectRawBlocks(doc);
