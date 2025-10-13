@@ -24,11 +24,13 @@
       </div>
       <div id="status" class="status"></div>
 
-      <section class="filters">
-        <button class="chip">Text</button><button class="chip">Text</button>
-        <button class="chip">Text</button><button class="chip">Text</button>
-        <button class="chip">Text</button>
-      </section>
+     <section class="filters">
+  <button class="chip" data-filter="today">Днес</button>
+  <button class="chip" data-filter="week">Тази седмица</button>
+  <button class="chip" data-filter="month">Този месец</button>
+  <button class="chip" data-filter="all" class="active">Всички</button>
+</section>
+
 
       <div id="list" class="list">
         <div class="placeholder">
@@ -87,7 +89,7 @@
     return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
   }
 
-  function toCardElement(rawHTML, baseHref){
+function toCardElement(rawHTML, baseHref){
   const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
   const wrap = fragDoc.getElementById('wrap');
   sanitize(wrap);
@@ -117,7 +119,7 @@
     }
   }
 
-  // 🕒 извличане на дата
+  // 🕒 дата
   let dateText = '';
   const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
   if(t){
@@ -127,57 +129,74 @@
     if(dateEl) dateText = dateEl.textContent.trim();
   }
 
-  let formattedDate = '';
+  let formattedDate = '', isoDate = '';
   if(dateText){
     try{
       const d = new Date(dateText);
-      if(!isNaN(d)) formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-      else formattedDate = dateText; // ако не се парсне, показваме оригинала
+      if(!isNaN(d)) {
+        formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+        isoDate = d.toISOString();
+      } else formattedDate = dateText;
     }catch{
       formattedDate = dateText;
     }
   }
 
-  // source
+  // източник
   let source = '';
   try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
   const meta = source || '';
 
   // render
-  const card = document.createElement('div'); card.className = 'card-row';
-  const thumb = document.createElement('div'); thumb.className = 'thumb';
-  if(imgSrc){ const im=document.createElement('img'); im.loading='lazy'; im.src=imgSrc; thumb.appendChild(im); } else { thumb.textContent='no image'; }
+  const card = document.createElement('div'); 
+  card.className = 'card-row';
+  if(isoDate) card.dataset.date = isoDate;
+
+  const thumb = document.createElement('div'); 
+  thumb.className = 'thumb';
+  if(imgSrc){ 
+    const im=document.createElement('img'); 
+    im.loading='lazy'; 
+    im.src=imgSrc; 
+    thumb.appendChild(im); 
+  } else { 
+    thumb.textContent='no image'; 
+  }
 
   const right = document.createElement('div');
-  const titleEl = document.createElement('h3'); titleEl.className='title';
+  right.className = 'right-side';
+
+  const headerRow = document.createElement('div');
+  headerRow.className = 'header-row';
+
+  const titleEl = document.createElement('h3'); 
+  titleEl.className='title';
   if(link){
     const a = document.createElement('a');
     a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
     a.style.color='inherit'; a.style.textDecoration='none';
     a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
     titleEl.appendChild(a);
-  } else {
-    titleEl.textContent = title;
-  }
+  } else { titleEl.textContent = title; }
 
-  // ново: дата
   const dateEl = document.createElement('div');
   dateEl.className = 'meta-date';
-  dateEl.textContent = formattedDate || '';
+  dateEl.textContent = formattedDate ? `🕒 ${formattedDate}` : '';
 
-  // домейн
+  headerRow.appendChild(titleEl);
+  if(formattedDate) headerRow.appendChild(dateEl);
+
   const metaEl = document.createElement('div'); 
   metaEl.className='meta';
   metaEl.textContent = meta;
 
-  right.appendChild(titleEl);
-  if(formattedDate) right.appendChild(dateEl);
+  right.appendChild(headerRow);
   right.appendChild(metaEl);
-
   card.appendChild(thumb);
   card.appendChild(right);
   return card;
 }
+
 
 
   function renderCardsFromDoc(doc, baseHref){
