@@ -17,7 +17,8 @@ body.light{
 
 /* Sidebar (desktop) */
 aside{
-  background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+  /* СОЛИДЕН ФОН (без прозрачност) */
+  background: var(--panel);
   border-right:1px solid var(--border);
   padding:20px;
   position:sticky; top:0; height:100vh;
@@ -48,7 +49,7 @@ main{padding:20px 20px 28px; overflow:auto}
   position:sticky; top:0; z-index:20; background:var(--bg); padding:8px 0;
 }
 .icon-btn{
-  display:none; /* видим само на мобилно */
+  display:none; /* показва се на мобилно */
   border:1px solid var(--border); background:var(--panel); color:var(--text);
   border-radius:10px; padding:10px 12px; line-height:1; font-size:18px;
 }
@@ -124,6 +125,26 @@ main{padding:20px 20px 28px; overflow:auto}
 .reader-content img{max-width:100%; border-radius:12px}
 .reader-date{font-size:14px; color:var(--muted); margin-bottom:20px; text-align:right}
 
+/* Pull-to-Refresh */
+#ptr{
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  transform: translateY(0);
+  will-change: transform;
+  pointer-events: none;
+}
+#ptr .ptr-inner{
+  display:flex; align-items:center; justify-content:center;
+  height:56px;
+  margin:-56px 0 0 0;
+  color:var(--muted);
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
+}
+#ptr .ptr-icon{ margin-right:8px; font-size:16px }
+#ptr.armed .ptr-icon{ transform: rotate(180deg) }
+#ptr.loading .ptr-text::after{ content:" Зареждам…"; }
+
 /* ====== Responsive ====== */
 
 /* Tablet */
@@ -133,19 +154,21 @@ main{padding:20px 20px 28px; overflow:auto}
   .thumb{width:88px; height:66px}
 }
 
-/* Mobile: off-canvas sidebar + larger touch targets */
+/* Mobile: off-canvas sidebar със СОЛИДЕН фон */
 @media (max-width: 768px){
   body{font-size:16px}
   .app{grid-template-columns:1fr}
-  /* Off-canvas */
+
+  /* Off-canvas sidebar — SOLID bg */
   aside{
     position:fixed; left:0; top:0; bottom:0; width:min(88vw, 320px);
     transform:translateX(-100%); transition:transform .25s ease;
     box-shadow:0 10px 40px rgba(0,0,0,.5); z-index:1000; height:100vh;
+    background: var(--panel); /* солиден фон */
   }
   body.sidebar-open aside{transform:translateX(0)}
+
   .icon-btn{display:inline-block}
-  /* Main spacing */
   main{padding:14px 14px 24px}
   .top{gap:8px}
   .import{gap:6px}
@@ -153,11 +176,13 @@ main{padding:20px 20px 28px; overflow:auto}
   .btn{padding:12px}
   .filters{gap:10px}
   .category-filter{margin-left:0}
+
   .card-row{grid-template-columns:72px 1fr; padding:12px}
   .thumb{width:72px; height:54px; border-radius:10px}
   .title{font-size:16px}
   .meta, .meta-date{font-size:12.5px}
-  /* Reader: full screen on mobile */
+
+  /* Reader full-screen */
   .reader-panel{
     left:0; top:0; transform:none; width:100vw; height:100vh; max-height:none; border-radius:0;
   }
