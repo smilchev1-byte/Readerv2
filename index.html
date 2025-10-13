@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Моите новини — извличане и плосък дизайн</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Лявото меню вече се зарежда от sidebar.html -->
+    <aside id="sidebar"><div class="brand">📰 Моите новини</div><div style="color:#999">Зареждам меню...</div></aside>
+
+    <main>
+      <div class="top">
+        <form class="import" onsubmit="return false;">
+          <input id="urlInput" type="url" placeholder="Въведи URL (ще се извлече през allorigins)">
+          <button id="btnFetch" class="btn primary">Извлечи</button>
+        </form>
+        <label class="btn" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+          Качи .html <input id="fileInput" type="file" accept=".html,.htm,text/html" hidden>
+        </label>
+        <button id="btnPaste" class="btn">Постави HTML</button>
+      </div>
+      <div id="status" class="status"></div>
+
+      <section class="filters">
+        <button class="chip">Text</button><button class="chip">Text</button>
+        <button class="chip">Text</button><button class="chip">Text</button>
+        <button class="chip">Text</button>
+      </section>
+
+      <div id="list" class="list">
+        <div class="placeholder">
+          Използвай URL/Качи/Постави HTML или **менюто вляво**. Ще се извадят <code>div.card.pt-4.pb-4.ad0</code> и <code>div.card.pt-4.pb-4.ad3</code> и ще се покажат като унифицирани карти (снимка вляво, заглавие вдясно). Клик по заглавие = **Reader view**.
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Reader overlay -->
+  <div id="reader" style="display:none">
+    <div class="reader-backdrop"></div>
+    <div class="reader-panel">
+      <div class="reader-bar">
+        <div class="reader-title">Четец</div>
+        <div class="reader-actions">
+          <button id="readerClose" class="btn">Затвори</button>
+        </div>
+      </div>
+      <div id="readerContent" class="reader-content">
+        <!-- Тук ще се визуализира articleBody -->
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ===== Theme (dark by default) =====
+  function setTheme(isDark){ document.body.classList.toggle('light', !isDark); localStorage.setItem('theme', isDark?'dark':'light'); }
+  (function initTheme(){ const saved=localStorage.getItem('theme'); setTheme(saved!=='light'); })();
+
+  // ===== Helpers =====
+  const $ = s => document.querySelector(s);
+  const statusEl = $('#status'), listEl = $('#list'), sidebarEl = $('#sidebar');
+  function setStatus(msg){ statusEl.textContent = msg || ''; }
+  function clearList(){ listEl.innerHTML=''; }
+  function placeholder(msg){ const d=document.createElement('div'); d.className='placeholder'; d.innerHTML=msg; listEl.appendChild(d); }
+  function parseHTML(html){ return new DOMParser().parseFromString(html,'text/html'); }
+  function absURL(base, rel){ try{ return new URL(rel, base).href }catch{ return rel } }
+
+  function sanitize(node){
+    node.querySelectorAll('script,style,iframe,object,embed,noscript').forEach(n=>n.remove());
+    return node;
+  }
+  function fixRelativeURLs(node, baseHref){
+    node.querySelectorAll('[href]').forEach(a=> a.setAttribute('href', absURL(baseHref, a.getAttribute('href'))));
+    node.querySelectorAll('[src]').forEach(el=> el.setAttribute('src', absURL(baseHref, el.getAttribute('src'))));
+    node.querySelectorAll('[srcset]').forEach(el=>{
+      const parts=(el.getAttribute('srcset')||'').split(',').map(s=>s.trim()).filter(Boolean);
+      el.setAttribute('srcset', parts.map(p=>{const [u,d]=p.split(/\s+/); return absURL(baseHref,u)+(d?(' '+d):'')}).join(', '));
+    });
+    return node;
+  }
+
+  // ===== Карти (списък) =====
+  function selectRawBlocks(doc){
+    return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
+  }
+
+  function toCardElement(rawHTML, baseHref){
+    const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
+    const wrap = fragDoc.getElementById('wrap');
+    sanitize(wrap);
+    fixRelativeURLs(wrap, baseHref);
+
+    // thumbnail
+    let imgSrc = null;
+    const img = wrap.querySelector('img');
+    if(img && img.getAttribute('src')) imgSrc = img.getAttribute('src');
+
+    // title & link
+    let title = '';
+    let link = '';
+    const h = wrap.querySelector('h1, h2, h3');
+    if(h && h.textContent.trim()){
+      title = h.textContent.trim();
+      const aInH = h.querySelector('a[href]');
+      if(aInH) link = aInH.getAttribute('href');
+    }else{
+      const a = wrap.querySelector('a[href]');
+      if(a && a.textContent.trim()){
+        title = a.textContent.trim();
+        link = a.getAttribute('href');
+      }else{
+        const p = wrap.querySelector('p, div');
+        title = (p && p.textContent.trim()) ? p.textContent.trim().slice(0,160) : '(без заглавие)';
+      }
+    }
+
+    // source
+    let source = '';
+    try{ source = new URL(baseHref).hostname.replace(/^www\./,''); }catch{}
+    const meta = source || '';
+
+    // render
+    const card = document.createElement('div'); card.className = 'card-row';
+    const thumb = document.createElement('div'); thumb.className = 'thumb';
+    if(imgSrc){ const im=document.createElement('img'); im.loading='lazy'; im.src=imgSrc; thumb.appendChild(im); } else { thumb.textContent='no image'; }
+
+    const right = document.createElement('div');
+    const titleEl = document.createElement('h3'); titleEl.className='title';
+
+    if(link){
+      const a = document.createElement('a');
+      a.href = link; a.textContent = title; a.target = '_blank'; a.rel='noopener';
+      a.style.color='inherit'; a.style.textDecoration='none';
+      // >>> Intercept за Reader view:
+      a.addEventListener('click', (ev)=>{ ev.preventDefault(); openReader(link); });
+      titleEl.appendChild(a);
+    } else {
+      titleEl.textContent = title;
+    }
+
+    const metaEl = document.createElement('div'); metaEl.className='meta'; metaEl.textContent = meta;
+
+    right.appendChild(titleEl); right.appendChild(metaEl);
+    card.appendChild(thumb); card.appendChild(right);
+    return card;
+  }
+
+  function renderCardsFromDoc(doc, baseHref){
+    const raw = selectRawBlocks(doc);
+    clearList();
+    if(!raw.length){ placeholder('Нищо не е открито по селекторите.'); return; }
+    raw.forEach(node=>{
+      const card = toCardElement(node.outerHTML, baseHref);
+      listEl.appendChild(card);
+    });
+  }
+
+  // ===== Импорт страница (както полето) =====
+  async function importURL(url){
+    if(!url){ setStatus('Моля, въведи URL.'); return; }
+    setStatus('⏳ Тегля страница през allorigins…');
+    try{
+      const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      const res = await fetch(prox, {mode:'cors'});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const html = await res.text();
+      const doc = parseHTML(html);
+      renderCardsFromDoc(doc, url);
+      setStatus('✅ Готово.');
+    }catch(e){
+      setStatus('❌ CORS/HTTP грешка. Ползвай „Качи .html“ или „Постави HTML“. ('+e.message+')');
+    }
+  }
+
+  // Полето „Въведи URL“
+  document.getElementById('btnFetch').addEventListener('click',()=> importURL(document.getElementById('urlInput').value.trim()));
+
+  // Качи .html
+  document.getElementById('fileInput').addEventListener('change', async (e)=>{
+    setStatus('');
+    const f = e.target.files[0];
+    if(!f) return;
+    const html = await f.text();
+    const doc = parseHTML(html);
+    renderCardsFromDoc(doc, 'file:///'+(f.name||'index.html'));
+    setStatus('✅ Качен файл.');
+    e.target.value='';
+  });
+
+  // Постави HTML
+  document.getElementById('btnPaste').addEventListener('click', async ()=>{
+    setStatus('');
+    try{
+      const text = await navigator.clipboard.readText();
+      if(!text || !text.includes('<')){ setStatus('Буферът не съдържа HTML.'); return; }
+      const doc = parseHTML(text);
+      renderCardsFromDoc(doc, location.href);
+      setStatus('✅ Поставен HTML.');
+    }catch(e){
+      setStatus('❌ Нямам достъп до клипборда. Разреши достъп или ползвай „Качи .html“.');
+    }
+  });
+
+  // ===== Sidebar: зареждане от отделен файл + action =====
+  async function loadSidebar(){
+    try{
+      const html = await fetch('sidebar.html').then(r=>r.text());
+      sidebarEl.innerHTML = html;
+
+      // тъмна/светла тема чекбокс (по избор в sidebar.html) — ако присъства
+      const themeToggle = sidebarEl.querySelector('#themeToggle');
+      if(themeToggle){
+        const saved=localStorage.getItem('theme');
+        themeToggle.checked = (saved!=='light');
+        themeToggle.addEventListener('change', e=> setTheme(e.target.checked));
+      }
+
+      // действие при клик на елемент с data-url
+      sidebarEl.addEventListener('click', (ev)=>{
+        const target = ev.target.closest('[data-url]');
+        if(!target) return;
+        ev.preventDefault();
+        const url = target.getAttribute('data-url');
+        importURL(url);
+        // маркирай активна категория, ако е .cat
+        sidebarEl.querySelectorAll('.cat.active').forEach(x=>x.classList.remove('active'));
+        if(target.classList.contains('cat')) target.classList.add('active');
+      });
+    }catch(e){
+      sidebarEl.innerHTML = '<div class="brand">📰 Моите новини</div><div class="placeholder">Не успях да заредя sidebar.html</div>';
+    }
+  }
+  loadSidebar();
+
+  // ===== Reader view (твоята логика за articleBody) =====
+  const reader = $('#reader'), readerContent = $('#readerContent');
+  $('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; readerContent.innerHTML=''; });
+  reader.addEventListener('click', (e)=>{ if(e.target.classList.contains('reader-backdrop')) { reader.style.display='none'; readerContent.innerHTML=''; } });
+
+  function splitIntoSentenceParagraphs(text, groupSize = 3){
+    const sentenceRegex = /[^.!?]+[.!?]+["']?\s*/g;
+    const sentences = text.match(sentenceRegex) || [text];
+    const groups = [];
+    for (let i=0; i<sentences.length; i+=groupSize){
+      const group = sentences.slice(i, i+groupSize).join(' ').trim();
+      if (group) groups.push(group);
+    }
+    return groups;
+  }
+
+  async function openReader(url){
+    setStatus('⏳ Зареждам статия за четене…');
+    try{
+      const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      const res = await fetch(prox, {mode:'cors'});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const html = await res.text();
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // снимка от <picture.img--title.landscape>
+      const pictureEl = doc.querySelector('picture.img--title.landscape');
+      let imageHTML = pictureEl ? pictureEl.outerHTML : '';
+
+      // изваждане на articleBody от application/ld+json
+      let articleText = null;
+      const ldJsonMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+      if (ldJsonMatches){
+        for (let match of ldJsonMatches){
+          try{
+            const jsonText = match.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
+            const data = JSON.parse(jsonText);
+            if (Array.isArray(data)){
+              for (let item of data){
+                if (item && item.articleBody){ articleText = item.articleBody; break; }
+              }
+            } else if (data && data.articleBody){
+              articleText = data.articleBody;
+            }
+          }catch(e){}
+          if(articleText) break;
+        }
+      }
+
+      readerContent.innerHTML = '';
+      if(articleText){
+        const grouped = splitIntoSentenceParagraphs(articleText, 3);
+        const formatted = grouped.map((g,i)=> `<p class="${i===0?'lead':''}">${g}</p>`).join('');
+        readerContent.innerHTML = `${imageHTML}${formatted}`;
+        reader.style.display = 'block';
+        setStatus('✅ Четецът е готов.');
+      }else{
+        setStatus('❌ Не е намерено "articleBody" за тази статия.');
+        alert('Не е намерено "articleBody" за тази статия.');
+      }
+    }catch(e){
+      setStatus('❌ Грешка при отваряне на четеца: '+e.message);
+      alert('Грешка при четеца: '+e.message);
+    }
+  }
+</script>
+</body>
+</html>
