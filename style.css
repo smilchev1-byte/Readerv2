@@ -115,3 +115,22 @@ main{padding:22px 24px; overflow:auto}
   .cats{flex-direction:row; flex-wrap:wrap; justify-content:center}
   .theme{margin-top:0}
 }
+
+.category-filter {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-left:auto;
+}
+.category-filter select {
+  background:var(--panel);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:6px 10px;
+}
+.cat-label {
+  font-size:14px;
+  color:var(--muted);
+}
+
