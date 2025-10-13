@@ -99,3 +99,38 @@ main{padding:22px 24px; overflow:auto}
   .cats{flex-direction:row; flex-wrap:wrap; justify-content:center}
   .theme{margin-top:0}
 }
+
+/* --- обновено --- */
+aside {
+  background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+  border-right:1px solid var(--border);
+  padding:20px;
+  position:sticky; top:0; height:100vh;
+  display:flex; flex-direction:column;
+}
+
+/* скролируемо меню */
+.cats {
+  flex:1;
+  overflow:auto;
+  padding-bottom:20px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:6px;
+}
+
+/* --- Reader overlay --- */
+.reader-content p{margin:0 0 1.2em 0; font-size:18px; line-height:1.65}
+.reader-content p.lead{font-weight:700; font-size:20px}
+.reader-content picture{display:block; margin-bottom:16px}
+.reader-content img{max-width:100%; border-radius:10px}
+
+/* ✨ ново: стил за дата */
+.reader-date{
+  font-size:14px;
+  color:var(--muted);
+  margin-bottom:20px;
+  text-align:right;
+}
+
