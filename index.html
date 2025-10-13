@@ -376,6 +376,40 @@
       card.style.display = show ? '' : 'none';
     });
   }
+
+  // ===== Филтриране по категория =====
+const categorySelect = document.getElementById('categorySelect');
+
+function populateCategories(){
+  const categories = new Set();
+  document.querySelectorAll('.card-row[data-category]').forEach(c=>{
+    const cat = c.dataset.category;
+    if(cat) categories.add(cat);
+  });
+  categorySelect.innerHTML = '<option value="all">Всички</option>' + 
+    Array.from(categories).map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+
+categorySelect.addEventListener('change', ()=>{
+  const selected = categorySelect.value;
+  document.querySelectorAll('.card-row').forEach(c=>{
+    const cat = c.dataset.category || '';
+    c.style.display = (selected==='all' || cat===selected) ? '' : 'none';
+  });
+});
+
+// Обновява списъка с категории след зареждане
+function renderCardsFromDoc(doc, baseHref){
+  const raw = selectRawBlocks(doc);
+  clearList();
+  if(!raw.length){ placeholder('Нищо не е открито по селекторите.'); return; }
+  raw.forEach(node=>{
+    const card = toCardElement(node.outerHTML, baseHref);
+    listEl.appendChild(card);
+  });
+  populateCategories();
+}
+
 </script>
 </body>
 </html>
