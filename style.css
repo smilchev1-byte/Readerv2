@@ -134,3 +134,10 @@ aside {
   text-align:right;
 }
 
+.meta-date {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 2px 0;
+}
+
+
