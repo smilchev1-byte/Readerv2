@@ -66,20 +66,30 @@ body.scrolling-down .headline{ transform:translateY(-6px); opacity:0; height:0; 
 .status{font-size:13px; color:var(--muted); margin:6px 2px}
 
 /* Filters */
-.filters{display:flex; align-items:center; gap:12px; margin:12px 0; flex-wrap:wrap}
-.scroller{display:flex; gap:8px; overflow:auto; -webkit-overflow-scrolling:touch; padding-bottom:2px}
-.scroller::-webkit-scrollbar{display:none}
-.chip{
-  padding:9px 14px; border-radius:999px; background:var(--chip);
-  color:var(--muted); border:1px solid var(--border); cursor:pointer; white-space:nowrap;
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  flex-wrap: wrap;
 }
-.chip.active{outline:2px solid var(--accent); color:#cfe2ff}
-.category-filter{display:flex; align-items:center; gap:8px; margin-left:auto}
-.category-filter select{
-  background:var(--panel); color:var(--text); border:1px solid var(--border);
-  border-radius:10px; padding:9px 12px; font-size:15px;
+.filter-group, .category-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.cat-label{font-size:14px; color:var(--muted)}
+.filters select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 15px;
+}
+.cat-label {
+  font-size: 14px;
+  color: var(--muted);
+}
 
 /* Cards – общ стил */
 .list{display:flex; flex-direction:column; gap:12px}
@@ -124,7 +134,7 @@ body.scrolling-down .headline{ transform:translateY(-6px); opacity:0; height:0; 
 .reader-content figure{display:block; margin:18px auto; max-width:90%; height:auto; border-radius:10px; overflow:hidden}
 .reader-content figure figcaption{text-align:center; color:var(--muted); font-size:14px; margin-top:6px; font-style:italic}
 
-/* Collapse Sidebar */
+/* Collapse Sidebar (desktop hover) */
 body.sidebar-collapsed .app{ grid-template-columns:74px 1fr }
 body.sidebar-collapsed aside{ width:74px; align-items:center }
 body.sidebar-collapsed .cat{ width:56px; justify-content:center }
@@ -133,14 +143,13 @@ body.sidebar-collapsed .brand{ display:none }
 body.sidebar-collapsed aside:hover{ width:220px }
 body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:relative }
 
-/* Responsive */
+/* Responsive base */
 @media (max-width:1024px){
   .app{grid-template-columns:64px 1fr}
   .card-row{grid-template-columns:88px 1fr}
   .thumb{width:88px; height:66px}
 }
 @media (max-width:768px){
-  .app{grid-template-columns:60px 1fr}
   main{padding:12px 14px 24px}
   .card-row{grid-template-columns:72px 1fr}
   .thumb{width:72px; height:54px}
@@ -154,69 +163,6 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   .title{font-size:15px}
   .meta-date{font-size:12px}
   .thumb{width:68px; height:50px}
-}
-
-/* --- Mobile slide-out sidebar --- */
-@media (max-width: 768px) {
-  .app {
-    grid-template-columns: 1fr; /* само основното съдържание */
-  }
-
-  aside {
-    position: fixed;
-    left: -240px;
-    top: 0;
-    height: 100vh;
-    width: 220px;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    transition: left 0.3s ease;
-    z-index: 1000;
-  }
-
-  body.sidebar-open aside {
-    left: 0;
-  }
-
-  /* overlay фон зад sidebar */
-  body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.45);
-    backdrop-filter: blur(2px);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease;
-    z-index: 999;
-  }
-
-  body.sidebar-open::after {
-    opacity: 1;
-    visibility: visible;
-  }
-
-  /* hamburger бутон винаги видим */
-  #collapseToggle {
-    display: inline-block !important;
-    font-size: 22px;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    padding: 6px 10px;
-  }
-
-  /* по-малки иконки вътре */
-  aside .fav {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-  }
-
-  .cat {
-    justify-content: flex-start !important;
-    gap: 10px;
-  }
 }
 
 /* --- iOS Safari sidebar overlay fix (финален) --- */
@@ -290,5 +236,3 @@ aside .fav {
 @media (max-width:768px){
   .app{grid-template-columns:1fr}
 }
-
-
