@@ -219,39 +219,76 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   }
 }
 
-/* Safari z-index fix */
-.app { position: relative; isolation: isolate; }
-.top { position: sticky; top: 0; z-index: 1; }
-aside { position: relative; z-index: 2; }
-.mode-switch { z-index: 0; position: relative; }
-
-/* --- Filters redesign (dropdowns) --- */
-.filters {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 12px 0;
-  flex-wrap: wrap;
+/* --- iOS Safari sidebar overlay fix (финален) --- */
+.app {
+  position: relative;
+  overflow: visible !important;
 }
 
-.filter-group, .category-filter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.filters select {
+/* Sidebar винаги над sticky header */
+aside {
+  position: fixed !important;
+  left: -240px;
+  top: 0;
+  height: 100vh;
+  width: 220px;
   background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 9px 12px;
-  font-size: 15px;
+  border-right: 1px solid var(--border);
+  transition: left 0.3s ease;
+  z-index: 1000 !important;
 }
 
-.cat-label {
-  font-size: 14px;
-  color: var(--muted);
+/* показване при sidebar-open */
+body.sidebar-open aside {
+  left: 0;
+}
+
+/* overlay фон зад sidebar */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease;
+  z-index: 999;
+}
+
+body.sidebar-open::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* sticky header остава под sidebar */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 10 !important;
+}
+
+/* Hamburger бутон */
+#collapseToggle {
+  display: inline-block !important;
+  font-size: 22px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+/* по-малки иконки вътре */
+aside .fav {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+/* само за мобилен */
+@media (max-width:768px){
+  .app{grid-template-columns:1fr}
 }
 
 
