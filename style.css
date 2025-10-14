@@ -224,3 +224,33 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
 .top { position: sticky; top: 0; z-index: 1; }
 aside { position: relative; z-index: 2; }
 .mode-switch { z-index: 0; position: relative; }
+
+
+/* --- Filters redesign (dropdowns) --- */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+.filter-group, .category-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filters select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 15px;
+}
+
+.cat-label {
+  font-size: 14px;
+  color: var(--muted);
+}
