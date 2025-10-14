@@ -21,7 +21,6 @@ function wireFilters() {
   }
 }
 
-
 // Зареждане на sidebar.html (за новини) или channels.html (за видеа)
 async function loadSidebar(){
   const sidebarEl = document.getElementById('sidebar');
@@ -36,9 +35,10 @@ async function loadSidebar(){
       const labelText = (el.textContent||'').trim();
       el.innerHTML = '';
       const iconUrl = el.getAttribute('data-icon') || DEFAULT_ICON;
-      const img = document.createElement('img');
+      const img = document.createElement('img'); 
       img.className='fav'; img.alt=''; img.referrerPolicy='no-referrer'; img.src = iconUrl;
-      const span = document.createElement('span'); span.className='label'; span.textContent = labelText;
+      const span = document.createElement('span'); 
+      span.className='label'; span.textContent = labelText;
       el.append(img, span);
       el.title = labelText || el.getAttribute('data-url') || el.getAttribute('data-channel') || '';
     });
@@ -56,7 +56,7 @@ async function loadSidebar(){
         btnVideo.classList.add('active');
         loadVideosFromChannel(btnVideo.dataset.channel);
       }
-      // след избор затваря sidebar на мобилен
+      // затваря sidebar на мобилен след избор
       if (window.innerWidth <= 768) {
         document.body.classList.remove('sidebar-open');
       }
@@ -66,42 +66,42 @@ async function loadSidebar(){
   }
 }
 
-// Превключване на режим от горните бутони
+// Превключване на режимите (Новини / Видеа)
 function wireModeSwitch(){
   const btnNews   = document.getElementById('modeNews');
   const btnVideos = document.getElementById('modeVideos');
- btnNews.addEventListener('click', () => {
-  if (MODE === 'news') return;
-  MODE = 'news';
-  btnNews.classList.add('active');
-  btnVideos.classList.remove('active');
-  document.querySelector('.headline').textContent = 'Последни новини';
 
-  // показваме филтрите само за новини
-  document.getElementById('filters-news').style.display = 'flex';
-  document.getElementById('filters-videos').style.display = 'none';
+  btnNews.addEventListener('click', () => {
+    if (MODE === 'news') return;
+    MODE = 'news';
+    btnNews.classList.add('active');
+    btnVideos.classList.remove('active');
+    document.querySelector('.headline').textContent = 'Последни новини';
 
-  document.getElementById('list').innerHTML =
-    '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
-  loadSidebar();
-});
+    // показваме филтрите за новини
+    document.getElementById('filters-news').style.display = 'flex';
+    document.getElementById('filters-videos').style.display = 'none';
 
-btnVideos.addEventListener('click', () => {
-  if (MODE === 'videos') return;
-  MODE = 'videos';
-  btnVideos.classList.add('active');
-  btnNews.classList.remove('active');
-  document.querySelector('.headline').textContent = 'Последни видеа';
+    document.getElementById('list').innerHTML =
+      '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
+    loadSidebar();
+  });
 
-  // скриваме филтрите за новини
-  document.getElementById('filters-news').style.display = 'none';
-  document.getElementById('filters-videos').style.display = 'flex';
+  btnVideos.addEventListener('click', () => {
+    if (MODE === 'videos') return;
+    MODE = 'videos';
+    btnVideos.classList.add('active');
+    btnNews.classList.remove('active');
+    document.querySelector('.headline').textContent = 'Последни видеа';
 
-  document.getElementById('list').innerHTML =
-    '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
-  loadSidebar();
-});
+    // показваме филтри за видеа (ако има)
+    document.getElementById('filters-news').style.display = 'none';
+    document.getElementById('filters-videos').style.display = 'flex';
 
+    document.getElementById('list').innerHTML =
+      '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
+    loadSidebar();
+  });
 }
 
 // Скрол hide за headline
@@ -119,7 +119,7 @@ function wireScrollHide(){
 // Collapse / toggle sidebar
 const collapseBtn = document.getElementById('collapseToggle');
 if (collapseBtn) {
-  collapseBtn.textContent = '☰'; // показва се като hamburger
+  collapseBtn.textContent = '☰';
   collapseBtn.addEventListener('click', ()=>{
     if (window.innerWidth <= 768) {
       document.body.classList.toggle('sidebar-open');
