@@ -156,14 +156,23 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   .thumb{width:68px; height:50px}
 }
 
-/* iOS Safari fix – превключвателят да не излиза над sidebar-а */
-@supports (-webkit-touch-callout: none) {
+/* --- iOS Safari sticky stacking bug fix --- */
+@media (max-width: 1024px) {
+  /* Изключваме sticky на мобилни, заменяме с относителна позиция */
   .top {
     position: relative !important;
-    z-index: auto !important;
+    z-index: 2 !important;
   }
+
+  /* Sidebar винаги над превключвателя */
+  aside {
+    z-index: 5 !important;
+    position: relative !important;
+  }
+
+  /* За всеки случай и самия превключвател да не изплува над sidebar */
   .mode-switch {
-    position: relative;
-    z-index: 5;
+    z-index: 1 !important;
   }
 }
+
