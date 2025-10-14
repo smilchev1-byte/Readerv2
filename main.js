@@ -1,19 +1,26 @@
 // Режим: news | videos
 let MODE = 'news';
 
-function wireFilters(){
-  document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
-    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active'); applyDateFilter(b.dataset.filter);
-  }));
-  const catSel = document.getElementById('categorySelect');
-  catSel.addEventListener('change', ()=>{
-    const sel = catSel.value;
-    document.querySelectorAll('.card-row').forEach(c=>{
-      c.style.display = (sel==='all' || c.dataset.category===sel) ? '' : 'none';
+function wireFilters() {
+  const timeSelect = document.getElementById('timeSelect');
+  const catSelect = document.getElementById('categorySelect');
+
+  if (timeSelect) {
+    timeSelect.addEventListener('change', () => {
+      applyDateFilter(timeSelect.value);
     });
-  });
+  }
+
+  if (catSelect) {
+    catSelect.addEventListener('change', () => {
+      const sel = catSelect.value;
+      document.querySelectorAll('.card-row').forEach(c => {
+        c.style.display = (sel === 'all' || c.dataset.category === sel) ? '' : 'none';
+      });
+    });
+  }
 }
+
 
 // Зареждане на sidebar.html (за новини) или channels.html (за видеа)
 async function loadSidebar(){
