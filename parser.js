@@ -1,9 +1,7 @@
-// Избира raw блоковете със статии от HTML
 function selectRawBlocks(doc){
   return Array.from(doc.querySelectorAll(SELECTORS));
 }
 
-// Карта от raw HTML
 function toCardElement(rawHTML, baseHref){
   const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
   const wrap = fragDoc.getElementById('wrap');
@@ -58,7 +56,6 @@ function toCardElement(rawHTML, baseHref){
   return card;
 }
 
-// Импорт по URL (чрез allorigins)
 async function importURL(url){
   if(!url){ setStatus('Невалиден URL.'); return; }
   setStatus('⏳ Зареждам новини…');
@@ -73,14 +70,10 @@ async function importURL(url){
   }catch(e){ setStatus('❌ CORS/HTTP грешка: '+e.message); }
 }
 
-// Рендер на картите
 function renderCardsFromDoc(doc, baseHref){
-  const raw = selectRawBlocks(doc);
   const listEl = $('#list'); listEl.innerHTML = '';
-  if(!raw.length){
-    listEl.innerHTML = '<div class="placeholder">Няма намерени елементи.</div>';
-    return;
-  }
+  const raw = selectRawBlocks(doc);
+  if(!raw.length){ listEl.innerHTML = '<div class="placeholder">Няма намерени елементи.</div>'; return; }
   raw.forEach(node => listEl.appendChild(toCardElement(node.outerHTML, baseHref)));
   populateCategories();
 }
