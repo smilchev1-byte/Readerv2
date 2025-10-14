@@ -166,20 +166,64 @@ document.addEventListener('click',e=>{
   }
 });
 
+// ===== Разделяне на абзаци
+function splitIntoSentenceParagraphs(text, groupSize = 3){
+  const sentenceRegex = /[^.!?]+[.!?]+["']?\s*/g;
+  const sentences = text.match(sentenceRegex) || [text];
+  const groups = [];
+  for (let i = 0; i < sentences.length; i += groupSize) {
+    const group = sentences.slice(i, i + groupSize).join(' ').trim();
+    if (group) groups.push(group);
+  }
+  return groups;
+}
+
 // ===== Reader
 const reader=$('#reader'), readerContent=$('#readerContent');
 $('#readerClose').addEventListener('click',()=>reader.style.display='none');
 reader.addEventListener('click',e=>{if(e.target.classList.contains('reader-backdrop'))reader.style.display='none';});
+
 async function openReader(url){
   setStatus('⏳ Зареждам статия...');
-  const prox=`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-  const res=await fetch(prox); const html=await res.text(); const doc=parseHTML(html);
-  const ld=html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-  let articleText=null,dateText='';
-  if(ld){for(let m of ld){try{const j=JSON.parse(m.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1]);
-  if(j.articleBody){articleText=j.articleBody;dateText=j.datePublished||'';break;}}catch{}}}
-  if(articleText){readerContent.innerHTML=`${dateText?`<div class='reader-date'>🕒 ${dateText}</div>`:''}<p>${articleText}</p>`;
-  reader.style.display='block';}
+  try{
+    const prox=`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res=await fetch(prox); 
+    const html=await res.text(); 
+    const doc=parseHTML(html);
+
+    // търси articleBody
+    let articleText=null,dateText='';
+    const ld=html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    if(ld){
+      for(const m of ld){
+        try{
+          const j=JSON.parse(m.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1]);
+          const pick=o=>o?.dateModified||o?.datePublished||null;
+          if(Array.isArray(j)){for(const i of j){if(i.articleBody){articleText=i.articleBody;dateText=pick(i);break;}}}
+          else if(j.articleBody){articleText=j.articleBody;dateText=pick(j);}
+        }catch{}
+        if(articleText) break;
+      }
+    }
+    // резервен вариант
+    if(!articleText){
+      const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
+      if(main){ sanitize(main); articleText = main.innerText.trim(); }
+    }
+
+    if(dateText){
+      const d = new Date(dateText);
+      if(!isNaN(d)) dateText = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+    }
+
+    if(articleText){
+      const paras = splitIntoSentenceParagraphs(articleText,3);
+      readerContent.innerHTML = `${dateText?`<div class='reader-date'>🕒 ${dateText}</div>`:''}${paras.map((p,i)=>`<p class="${i===0?'lead':''}">${p}</p>`).join('')}`;
+      reader.style.display='block';
+    }else{
+      setStatus('❌ Не е намерено съдържание за четене.');
+    }
+  }catch(e){ setStatus('❌ Грешка: '+e.message); }
 }
 
 // ===== Филтри
