@@ -225,7 +225,6 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
 aside { position: relative; z-index: 2; }
 .mode-switch { z-index: 0; position: relative; }
 
-
 /* --- Filters redesign (dropdowns) --- */
 .filters {
   display: flex;
@@ -254,3 +253,5 @@ aside { position: relative; z-index: 2; }
   font-size: 14px;
   color: var(--muted);
 }
+
+
