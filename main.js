@@ -29,7 +29,8 @@ async function loadSidebar(){
       const labelText = (el.textContent||'').trim();
       el.innerHTML = '';
       const iconUrl = el.getAttribute('data-icon') || DEFAULT_ICON;
-      const img = document.createElement('img'); img.className='fav'; img.alt=''; img.referrerPolicy='no-referrer'; img.src = iconUrl;
+      const img = document.createElement('img');
+      img.className='fav'; img.alt=''; img.referrerPolicy='no-referrer'; img.src = iconUrl;
       const span = document.createElement('span'); span.className='label'; span.textContent = labelText;
       el.append(img, span);
       el.title = labelText || el.getAttribute('data-url') || el.getAttribute('data-channel') || '';
@@ -48,9 +49,9 @@ async function loadSidebar(){
         btnVideo.classList.add('active');
         loadVideosFromChannel(btnVideo.dataset.channel);
       }
-      // Автоматично скриване на sidebar след избор (само мобилен)
+      // след избор затваря sidebar на мобилен
       if (window.innerWidth <= 768) {
-        document.body.classList.remove('sidebar-expanded');
+        document.body.classList.remove('sidebar-open');
       }
     });
   }catch(err){
@@ -65,8 +66,7 @@ function wireModeSwitch(){
   btnNews.addEventListener('click', ()=>{
     if (MODE==='news') return;
     MODE='news';
-    btnNews.classList.add('active'); btnNews.setAttribute('aria-selected','true');
-    btnVideos.classList.remove('active'); btnVideos.setAttribute('aria-selected','false');
+    btnNews.classList.add('active'); btnVideos.classList.remove('active');
     document.querySelector('.headline').textContent = 'Последни новини';
     document.getElementById('list').innerHTML = '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
     loadSidebar();
@@ -74,8 +74,7 @@ function wireModeSwitch(){
   btnVideos.addEventListener('click', ()=>{
     if (MODE==='videos') return;
     MODE='videos';
-    btnVideos.classList.add('active'); btnVideos.setAttribute('aria-selected','true');
-    btnNews.classList.remove('active'); btnNews.setAttribute('aria-selected','false');
+    btnVideos.classList.add('active'); btnNews.classList.remove('active');
     document.querySelector('.headline').textContent = 'Последни видеа';
     document.getElementById('list').innerHTML = '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
     loadSidebar();
@@ -94,20 +93,22 @@ function wireScrollHide(){
   });
 }
 
-// Collapse (desktop + mobile)
+// Collapse / toggle sidebar
 const collapseBtn = document.getElementById('collapseToggle');
 if (collapseBtn) {
+  collapseBtn.textContent = '☰'; // показва се като hamburger
   collapseBtn.addEventListener('click', ()=>{
     if (window.innerWidth <= 768) {
-      document.body.classList.toggle('sidebar-expanded');
+      document.body.classList.toggle('sidebar-open');
     } else {
       document.body.classList.toggle('sidebar-collapsed');
     }
   });
 }
 
-// iPhone автоматично стартира със свит sidebar (иконки)
+// При мобилен – скрито по подразбиране
 if (window.innerWidth <= 768) {
+  document.body.classList.remove('sidebar-open');
   document.body.classList.add('sidebar-collapsed');
 }
 
