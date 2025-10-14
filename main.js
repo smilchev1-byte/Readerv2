@@ -48,6 +48,10 @@ async function loadSidebar(){
         btnVideo.classList.add('active');
         loadVideosFromChannel(btnVideo.dataset.channel);
       }
+      // Автоматично скриване на sidebar след избор (само мобилен)
+      if (window.innerWidth <= 768) {
+        document.body.classList.remove('sidebar-expanded');
+      }
     });
   }catch(err){
     sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя меню<br>${err.message}</div>`;
@@ -73,7 +77,6 @@ function wireModeSwitch(){
     btnVideos.classList.add('active'); btnVideos.setAttribute('aria-selected','true');
     btnNews.classList.remove('active'); btnNews.setAttribute('aria-selected','false');
     document.querySelector('.headline').textContent = 'Последни видеа';
-    // във видеа няма филтър по категория – оставяме времевите филтри да работят
     document.getElementById('list').innerHTML = '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
     loadSidebar();
   });
@@ -91,34 +94,22 @@ function wireScrollHide(){
   });
 }
 
-// Collapse (desktop)
+// Collapse (desktop + mobile)
 const collapseBtn = document.getElementById('collapseToggle');
 if (collapseBtn) {
   collapseBtn.addEventListener('click', ()=>{
-    document.body.classList.toggle('sidebar-collapsed');
+    if (window.innerWidth <= 768) {
+      document.body.classList.toggle('sidebar-expanded');
+    } else {
+      document.body.classList.toggle('sidebar-collapsed');
+    }
   });
 }
 
-// 📱 Toggle sidebar on mobile tap
-document.querySelector('.headline').addEventListener('click', () => {
-  document.body.classList.toggle('sidebar-open');
-});
-
-
-// 📱 Mobile sidebar toggle
-const menuBtn = document.getElementById('menuToggle');
-if (menuBtn) {
-  menuBtn.addEventListener('click', () => {
-    document.body.classList.toggle('sidebar-open');
-  });
+// iPhone автоматично стартира със свит sidebar (иконки)
+if (window.innerWidth <= 768) {
+  document.body.classList.add('sidebar-collapsed');
 }
-
-// Затваряне при клик върху overlay
-document.addEventListener('click', (e) => {
-  if (document.body.classList.contains('sidebar-open') && e.target === document.body) {
-    document.body.classList.remove('sidebar-open');
-  }
-});
 
 // Init
 wireFilters();
