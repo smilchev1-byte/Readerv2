@@ -348,3 +348,105 @@ body.sidebar-collapsed aside:hover .cat .label {
   .meta-date { font-size: 12px }
   .thumb { width: 68px; height: 50px }
 }
+
+
+
+
+/* === Reader (подобрено подравняване на изображения) === */
+.reader {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: none;
+  z-index: 1000;
+}
+
+.reader-panel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: min(900px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 24px;
+}
+
+.reader-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* --- Текст и изображения в четеца --- */
+.reader-content {
+  max-width: 70ch;
+  margin: 0 auto;
+}
+
+.reader-content p {
+  font-size: 18px;
+  line-height: 1.65;
+  margin: 0 0 1.2em;
+  color: var(--text);
+}
+
+.reader-content p.lead {
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.reader-date {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 16px;
+  text-align: right;
+}
+
+/* --- Подравняване и стил на изображенията --- */
+.reader-content picture,
+.reader-content img,
+.reader-content figure {
+  display: block;
+  margin: 18px auto;
+  max-width: 90%;
+  height: auto;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.reader-content figure figcaption {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Мобилен вариант */
+@media (max-width:768px) {
+  .reader-content picture,
+  .reader-content img,
+  .reader-content figure {
+    max-width: 100%;
+    margin: 14px 0;
+    border-radius: 8px;
+  }
+}
+
+
+
+
