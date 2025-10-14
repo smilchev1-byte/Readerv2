@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Моите новини</title>
+
 <link rel="stylesheet" href="style.css">
 
-<!-- PWA -->
+<!-- PWA (по желание) -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f1418">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +16,7 @@
 </head>
 <body>
   <div class="app">
-    <!-- Sidebar -->
+    <!-- Sidebar (зарежда sidebar.html) -->
     <aside id="sidebar" aria-label="Навигация">
       <div class="brand">📰 Моите новини</div>
       <div style="color:#999">Зареждам меню...</div>
@@ -70,6 +71,7 @@
   </div>
 
 <script>
+/* ===== Helpers ===== */
 const $ = s => document.querySelector(s);
 const statusEl = $('#status'), listEl = $('#list'), sidebarEl = $('#sidebar');
 function setStatus(msg){ statusEl.textContent = msg || ''; }
@@ -81,10 +83,39 @@ function sanitize(node){ node.querySelectorAll('script,style,iframe,object,embed
 function fixRelativeURLs(node, baseHref){
   node.querySelectorAll('[href]').forEach(a=> a.setAttribute('href', absURL(baseHref, a.getAttribute('href'))));
   node.querySelectorAll('[src]').forEach(el=> el.setAttribute('src', absURL(baseHref, el.getAttribute('src'))));
+  node.querySelectorAll('[srcset]').forEach(el=>{
+    const parts=(el.getAttribute('srcset')||'').split(',').map(s=>s.trim()).filter(Boolean);
+    el.setAttribute('srcset', parts.map(p=>{const [u,d]=p.split(/\s+/); return absURL(baseHref,u)+(d?(' '+d):'')}).join(', '));
+  });
   return node;
 }
 
-// ===== Избор и визуализация на новини
+/* ===== JSON-LD extractor (вкл. @graph) ===== */
+function extractArticleFromLdJson(html){
+  const scripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  const pickDate = o => o?.dateModified || o?.datePublished || null;
+
+  const tryOne = obj => {
+    if (!obj || typeof obj !== 'object') return null;
+    if (obj.articleBody) return { body: obj.articleBody, date: pickDate(obj) };
+    if (Array.isArray(obj)) { for (const it of obj) { const r = tryOne(it); if (r) return r; } }
+    if (obj['@graph']) return tryOne(obj['@graph']);
+    if (obj.mainEntityOfPage) return tryOne(obj.mainEntityOfPage);
+    return null;
+  };
+
+  for (const tag of scripts) {
+    try {
+      const jsonText = tag.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
+      const data = JSON.parse(jsonText);
+      const found = tryOne(data);
+      if (found) return found;
+    } catch {}
+  }
+  return null;
+}
+
+/* ===== Избор и визуализация на новини ===== */
 function selectRawBlocks(doc){
   return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
 }
@@ -95,19 +126,40 @@ function toCardElement(rawHTML, baseHref){
   sanitize(wrap);
   fixRelativeURLs(wrap, baseHref);
 
-  const imgSrc = wrap.querySelector('img')?.src || '';
-  const title = wrap.querySelector('h1,h2,h3')?.innerText?.trim() || '(без заглавие)';
-  const link = wrap.querySelector('a[href]')?.getAttribute('href') || '';
-  const dateText = wrap.querySelector('time[datetime]')?.getAttribute('datetime') || '';
+  // изображение
+  const img = wrap.querySelector('img');
+  const imgSrc = img?.getAttribute('src') || '';
+
+  // заглавие
+  const h = wrap.querySelector('h1,h2,h3');
+  const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || wrap.textContent || '(без заглавие)').trim();
+
+  // линк (нормализиран към абсолютен)
+  const rawLink = (h?.querySelector('a[href]')?.getAttribute('href')) || wrap.querySelector('a[href]')?.getAttribute('href') || '';
+  const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
+
+  // дата
+  let isoDate = '', formattedDate = '';
+  const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
+  const dateText = t ? (t.getAttribute('datetime') || t.content || '') : '';
+  if (dateText) {
+    const d = new Date(dateText);
+    if (!isNaN(d)) { isoDate = d.toISOString(); formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'}); }
+  }
+
+  // категория
   const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
   const category = breadcrumb ? breadcrumb.textContent.trim() : '';
-  let formattedDate = '';
-  if(dateText){ const d = new Date(dateText); if(!isNaN(d)) formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium'}); }
 
+  // източник
+  let source = ''; try { source = new URL(baseHref).hostname.replace(/^www\./,''); } catch {}
+
+  // рендер
   const card = document.createElement('div');
   card.className='card-row';
-  if(dateText) card.dataset.date = dateText;
-  if(category) card.dataset.category = category;
+  if (isoDate) card.dataset.date = isoDate;
+  if (category) card.dataset.category = category;
+  if (linkAbs) card.dataset.href = linkAbs;
 
   card.innerHTML = `
     <div class="thumb">${imgSrc?`<img src="${imgSrc}" alt="">`:'<span>no image</span>'}</div>
@@ -116,22 +168,31 @@ function toCardElement(rawHTML, baseHref){
         <h3 class="title"><a href="#">${title}</a></h3>
         ${formattedDate?`<div class="meta-date">🕒 ${formattedDate}</div>`:''}
       </div>
-      <div class="meta">${category?`Категория: ${category}`:''}</div>
+      <div class="meta">${source}${category?` • ${category}`:''}</div>
     </div>`;
-  card.querySelector('a').addEventListener('click', e=>{ e.preventDefault(); openReader(link); });
+
+  card.querySelector('a').addEventListener('click', e=>{
+    e.preventDefault();
+    const href = card.dataset.href || '';
+    if (!href) { setStatus('❌ Липсва линк към статия.'); return; }
+    openReader(href);
+  });
+
   return card;
 }
 
 async function importURL(url){
-  if(!url){ setStatus('Няма URL.'); return; }
-  setStatus('⏳ Зареждане...');
+  if(!url){ setStatus('Невалиден URL.'); return; }
+  setStatus('⏳ Зареждам новини…');
   try{
-    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res  = await fetch(prox, {mode:'cors'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
     const html = await res.text();
-    const doc = parseHTML(html);
+    const doc  = parseHTML(html);
     renderCardsFromDoc(doc, url);
-    setStatus('✅ Готово.');
-  }catch(e){ setStatus('❌ Грешка: '+e.message); }
+    setStatus('');
+  }catch(e){ setStatus('❌ CORS/HTTP грешка: '+e.message); }
 }
 
 function renderCardsFromDoc(doc, baseHref){
@@ -142,7 +203,7 @@ function renderCardsFromDoc(doc, baseHref){
   populateCategories();
 }
 
-// ===== Sidebar
+/* ===== Sidebar ===== */
 async function loadSidebar(){
   try{
     const html = await fetch('sidebar.html').then(r=>r.text());
@@ -154,7 +215,9 @@ async function loadSidebar(){
       importURL(target.getAttribute('data-url'));
       document.body.classList.remove('sidebar-open');
     });
-  }catch{ sidebarEl.innerHTML='<div class="placeholder">❌ Не успях да заредя sidebar.html</div>'; }
+  }catch{
+    sidebarEl.innerHTML = '<div class="placeholder">❌ Не успях да заредя sidebar.html</div>';
+  }
 }
 loadSidebar();
 
@@ -166,7 +229,7 @@ document.addEventListener('click',e=>{
   }
 });
 
-// ===== Разделяне на абзаци
+/* ===== Разделяне на абзаци ===== */
 function splitIntoSentenceParagraphs(text, groupSize = 3){
   const sentenceRegex = /[^.!?]+[.!?]+["']?\s*/g;
   const sentences = text.match(sentenceRegex) || [text];
@@ -178,77 +241,88 @@ function splitIntoSentenceParagraphs(text, groupSize = 3){
   return groups;
 }
 
-// ===== Reader
+/* ===== Reader ===== */
 const reader=$('#reader'), readerContent=$('#readerContent');
-$('#readerClose').addEventListener('click',()=>reader.style.display='none');
-reader.addEventListener('click',e=>{if(e.target.classList.contains('reader-backdrop'))reader.style.display='none';});
+$('#readerClose').addEventListener('click',()=>{ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; });
+reader.addEventListener('click',e=>{ if(e.target.classList.contains('reader-backdrop')){ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; } });
 
 async function openReader(url){
-  setStatus('⏳ Зареждам статия...');
+  if (!url) { setStatus('❌ Невалиден URL за статия.'); return; }
+  setStatus('⏳ Зареждам статия за четене…');
   try{
-    const prox=`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res=await fetch(prox); 
-    const html=await res.text(); 
-    const doc=parseHTML(html);
+    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res  = await fetch(prox, { mode:'cors' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const doc  = parseHTML(html);
 
-    // търси articleBody
-    let articleText=null,dateText='';
-    const ld=html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-    if(ld){
-      for(const m of ld){
-        try{
-          const j=JSON.parse(m.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1]);
-          const pick=o=>o?.dateModified||o?.datePublished||null;
-          if(Array.isArray(j)){for(const i of j){if(i.articleBody){articleText=i.articleBody;dateText=pick(i);break;}}}
-          else if(j.articleBody){articleText=j.articleBody;dateText=pick(j);}
-        }catch{}
-        if(articleText) break;
-      }
-    }
-    // резервен вариант
-    if(!articleText){
+    // 1) JSON-LD (вкл. @graph)
+    const fromLd = extractArticleFromLdJson(html);
+    let articleText = fromLd?.body || null;
+    let dateText    = fromLd?.date || '';
+
+    // 2) Fallback към основен контейнер
+    if (!articleText) {
       const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
-      if(main){ sanitize(main); articleText = main.innerText.trim(); }
+      if (main) { sanitize(main); articleText = main.innerText.trim(); }
     }
 
-    if(dateText){
+    // 3) Дата – ако липсва
+    if (!dateText) {
+      const t = doc.querySelector('time[datetime], meta[property="article:published_time"]');
+      dateText = t ? (t.getAttribute?.('datetime') || t.content || '') : '';
+    }
+    let fDate = '';
+    if (dateText) {
       const d = new Date(dateText);
-      if(!isNaN(d)) dateText = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+      if (!isNaN(d)) fDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
     }
 
-    if(articleText){
-      const paras = splitIntoSentenceParagraphs(articleText,3);
-      readerContent.innerHTML = `${dateText?`<div class='reader-date'>🕒 ${dateText}</div>`:''}${paras.map((p,i)=>`<p class="${i===0?'lead':''}">${p}</p>`).join('')}`;
+    // 4) Корица
+    const pic = doc.querySelector('picture.img--title.landscape, article picture, .article picture, figure picture');
+    const imgHTML = pic ? pic.outerHTML : '';
+
+    if (articleText) {
+      const paras = splitIntoSentenceParagraphs(articleText, 3);
+      readerContent.innerHTML = `${imgHTML}${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}${paras.map((p,i)=>`<p class="${i===0?'lead':''}">${p}</p>`).join('')}`;
       reader.style.display='block';
-    }else{
-      setStatus('❌ Не е намерено съдържание за четене.');
+      reader.setAttribute('aria-hidden','false');
+      setStatus('');
+    } else {
+      setStatus('❌ Не успях да извлека съдържанието на статията.');
     }
-  }catch(e){ setStatus('❌ Грешка: '+e.message); }
+  }catch(e){
+    setStatus('❌ Грешка при зареждане: '+e.message+' — сайтът може да блокира през прокси.');
+  }
 }
 
-// ===== Филтри
+/* ===== Филтри по време ===== */
 document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
   b.classList.add('active'); applyDateFilter(b.dataset.filter);
 }));
 function applyDateFilter(f){
-  const now=new Date();document.querySelectorAll('.card-row').forEach(c=>{
-    const d=new Date(c.dataset.date);let s=true;
-    if(f==='today')s=d.toDateString()===now.toDateString();
-    if(f==='week')s=(now-d)/(1000*60*60*24)<=7;
-    if(f==='month')s=(now-d)/(1000*60*60*24)<=31;
-    c.style.display=s?'':'none';
+  const now=new Date();
+  document.querySelectorAll('.card-row').forEach(c=>{
+    const dStr=c.dataset.date; if(!dStr){ c.style.display=''; return; }
+    const d=new Date(dStr); let show=true;
+    if(f==='today') show = d.toDateString()===now.toDateString();
+    else if(f==='week') show = (now-d)/(1000*60*60*24)<=7;
+    else if(f==='month') show = (now-d)/(1000*60*60*24)<=31;
+    c.style.display = show ? '' : 'none';
   });
 }
 
-// ===== Категории
+/* ===== Филтър по категория ===== */
 const catSel=$('#categorySelect');
 function populateCategories(){
-  const cats=new Set();document.querySelectorAll('.card-row[data-category]').forEach(c=>cats.add(c.dataset.category));
-  catSel.innerHTML='<option value="all">Всички</option>'+[...cats].map(c=>`<option>${c}</option>`).join('');
+  const cats=new Set();
+  document.querySelectorAll('.card-row[data-category]').forEach(c=>{ if(c.dataset.category) cats.add(c.dataset.category); });
+  catSel.innerHTML='<option value="all">Всички</option>'+[...cats].sort().map(c=>`<option>${c}</option>`).join('');
 }
 catSel.addEventListener('change',()=>{
-  const sel=catSel.value;document.querySelectorAll('.card-row').forEach(c=>{
+  const sel=catSel.value;
+  document.querySelectorAll('.card-row').forEach(c=>{
     c.style.display=(sel==='all'||c.dataset.category===sel)?'':'none';
   });
 });
