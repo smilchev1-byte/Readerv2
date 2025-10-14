@@ -2,15 +2,13 @@
 const DEFAULT_ICON = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f4f0.svg'; // 📰
 const SELECTORS = 'div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3';
 
-// Query helpers
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 
-// Статус
 function setStatus(msg){ const el = $('#status'); if (el) el.textContent = msg || ''; }
 
-// HTML/DOM помощници
 function parseHTML(html){ return new DOMParser().parseFromString(html, 'text/html'); }
+function parseXML(xml){ return new DOMParser().parseFromString(xml, 'application/xml'); }
 function sanitize(node){ node.querySelectorAll('script,style,iframe,object,embed,noscript').forEach(n=>n.remove()); return node; }
 function absURL(base, rel){ try { return new URL(rel, base).href } catch { return rel } }
 function fixRelativeURLs(node, baseHref){
@@ -36,7 +34,7 @@ function applyDateFilter(filter){
   });
 }
 
-// Категориен филтър
+// Категории за новини
 function populateCategories(){
   const select = $('#categorySelect'); if(!select) return;
   const cats = new Set();
