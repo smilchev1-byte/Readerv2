@@ -57,9 +57,11 @@ async function loadSidebar(){
         loadVideosFromChannel(btnVideo.dataset.channel);
       }
       // затваря sidebar на мобилен след избор
-      if (window.innerWidth <= 768) {
-        document.body.classList.remove('sidebar-open');
-      }
+      // затваряме sidebar малко след като се зареди съдържанието
+  if (window.innerWidth <= 768) {
+    setTimeout(() => document.body.classList.remove('sidebar-open'), 400);
+  }
+
     });
   }catch(err){
     sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя меню<br>${err.message}</div>`;
