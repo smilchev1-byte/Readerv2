@@ -12,13 +12,24 @@ body{
 .app{display:grid; grid-template-columns:220px 1fr; width:100%; transition:grid-template-columns .3s}
 
 /* Sidebar */
-aside{
-  background:var(--panel);
-  border-right:1px solid var(--border);
-  padding:10px 6px;
-  position:sticky; top:0; height:100vh;
-  display:flex; flex-direction:column; align-items:flex-start; gap:10px;
-  overflow-x:hidden; transition:width .3s; width:220px;
+aside {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 10px 6px;
+  position: fixed;              /* 🔧 вместо sticky */
+  top: 0;
+  left: 0;
+  bottom: 0;
+  height: 100vh;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: transform .3s ease, width .3s ease;
+  z-index: 50;                  /* ✅ под top-бара */
 }
 .brand{font-weight:700; font-size:15px; padding-left:10px}
 .cats-loading{color:#999; font-size:12px; text-align:left; padding-left:10px}
