@@ -27,14 +27,25 @@ function buildVideoCard(entry){
         <h3 class="title"><a href="#">${title}</a></h3>
         ${iso?`<div class="meta-date">🕒 ${new Date(iso).toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'})}</div>`:''}
       </div>
-      <div class="meta">YouTube • ${vid}</div>
+      <div class="meta">YouTube</div>
     </div>
   `;
+
+  // 💡 При мобилно – отваря в YouTube app
   card.querySelector('a').addEventListener('click', e=>{
     e.preventDefault();
     if(!vid) return;
-    openVideoInReader(vid, title, iso);
+    const isMobile = /iPhone|iPad|Android|iPod/i.test(navigator.userAgent);
+    if(isMobile){
+      // Отваря в приложението (или в браузъра ако няма app)
+      window.location.href = `vnd.youtube://${vid}`;
+      setTimeout(()=>{ window.open(`https://www.youtube.com/watch?v=${vid}`, '_blank'); }, 500);
+    } else {
+      // На десктоп остава четеца
+      openVideoInReader(vid, title, iso);
+    }
   });
+
   return card;
 }
 
