@@ -105,6 +105,21 @@ document.querySelector('.headline').addEventListener('click', () => {
 });
 
 
+// 📱 Mobile sidebar toggle
+const menuBtn = document.getElementById('menuToggle');
+if (menuBtn) {
+  menuBtn.addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-open');
+  });
+}
+
+// Затваряне при клик върху overlay
+document.addEventListener('click', (e) => {
+  if (document.body.classList.contains('sidebar-open') && e.target === document.body) {
+    document.body.classList.remove('sidebar-open');
+  }
+});
+
 // Init
 wireFilters();
 wireModeSwitch();
