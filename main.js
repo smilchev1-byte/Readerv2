@@ -99,6 +99,12 @@ if (collapseBtn) {
   });
 }
 
+// 📱 Toggle sidebar on mobile tap
+document.querySelector('.headline').addEventListener('click', () => {
+  document.body.classList.toggle('sidebar-open');
+});
+
+
 // Init
 wireFilters();
 wireModeSwitch();
