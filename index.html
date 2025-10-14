@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="app">
-    <!-- Mini dock / Sidebar -->
+    <!-- Sidebar / Dock -->
     <aside id="sidebar" aria-label="Навигация">
       <div class="brand">📰 Моите новини</div>
       <div class="cats-loading">Зареждам меню...</div>
@@ -20,6 +20,13 @@
         <div class="left-actions">
           <button id="collapseToggle" class="icon-btn desktop-only" title="Свий/разгърни">⟨⟩</button>
         </div>
+
+        <!-- Top mode switch -->
+        <div class="mode-switch" role="tablist" aria-label="Режими">
+          <button id="modeNews" class="mode-btn active" role="tab" aria-selected="true" data-mode="news">Новини</button>
+          <button id="modeVideos" class="mode-btn" role="tab" aria-selected="false" data-mode="videos">Видеа</button>
+        </div>
+
         <h2 class="headline">Последни новини</h2>
       </div>
 
@@ -41,9 +48,9 @@
         </div>
       </section>
 
-      <!-- Списък с новини -->
+      <!-- Списък -->
       <div id="list" class="list">
-        <div class="placeholder">Използвай <b>менюто</b> отляво, за да заредиш новини.</div>
+        <div class="placeholder">Използвай менюто, за да заредиш новини или видеа.</div>
       </div>
     </main>
   </div>
@@ -60,10 +67,11 @@
     </div>
   </div>
 
-  <!-- JS модули -->
+  <!-- JS (в една папка) -->
   <script src="utils.js"></script>
   <script src="parser.js"></script>
   <script src="reader.js"></script>
+  <script src="videos.js"></script>
   <script src="main.js"></script>
 </body>
 </html>
