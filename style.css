@@ -166,3 +166,16 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   .meta-date{font-size:12px}
   .thumb{width:68px; height:50px}
 }
+
+/* === Mobile sidebar behaviour === */
+@media (max-width: 768px) {
+  aside {
+    background: var(--panel);
+    width: 250px;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 20px rgba(0,0,0,0.4);
+  }
+  body.sidebar-open aside {
+    transform: translateX(0);
+  }
+}
