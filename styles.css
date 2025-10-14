@@ -1,0 +1,151 @@
+/* Base reset */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+html { color-scheme: light dark; }
+body {
+  margin: 0;
+  font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg, #0b1020);
+  color: var(--fg, #e5e7eb);
+  --bg: #0b1020;
+  --fg: #e5e7eb;
+  --muted: #9aa4b2;
+  --card: #0f172a;
+  --card2: #0b132b;
+  --accent: #60a5fa;
+  --accent-2: #22d3ee;
+  --border: #243245;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+/* Top bar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: linear-gradient(180deg, rgba(15,23,42,.96), rgba(15,23,42,.85));
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding-top: max(6px, var(--safe-top));
+}
+.topbar-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.logo { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: .2px; }
+.tabs { display: flex; gap: 6px; }
+.tab {
+  border: 1px solid var(--border);
+  background: #111b34;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab.is-active {
+  outline: 2px solid #3b82f6;
+  background: #0b1430;
+}
+.icon-btn {
+  inline-size: 38px; block-size: 38px;
+  border-radius: 10px; border: 1px solid var(--border);
+  background: #0d1730; color: var(--fg);
+  font-size: 18px; cursor: pointer;
+}
+
+/* Layout */
+.content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 12px;
+  padding-bottom: calc(12px + var(--safe-bottom));
+  min-height: calc(100dvh - 56px);
+}
+
+/* Sidebar — mobile drawer that actually shows on iPhone */
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  inline-size: min(86vw, 360px);
+  transform: translateX(-100%);
+  transition: transform .28s ease;
+  z-index: 1200;
+  background: #0b132b;
+  border-right: 1px solid var(--border);
+  display: block; /* ensure it renders on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+.sidebar.is-open { transform: translateX(0); }
+.sidebar-inner {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px 12px;
+  block-size: 100dvh;
+  overflow: auto;
+}
+.sidebar-section h2 { font-size: 14px; margin: 8px 0; color: var(--muted); }
+.pill-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.pill-list li {
+  border: 1px solid var(--border);
+  padding: 6px 10px; border-radius: 999px; background: #0f1a33;
+}
+.filter { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+
+/* Cards */
+.cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 680px) {
+  .content { grid-template-columns: 240px 1fr; }
+  .sidebar { position: sticky; inset: auto; transform: none; inline-size: auto; block-size: max-content; }
+  .sidebar-inner { block-size: auto; overflow: visible; }
+}
+@media (min-width: 980px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: clip;
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+}
+.card .media { position: relative; background: #0a0f1f; }
+.thumb {
+  inline-size: 100%; block-size: 100%; object-fit: cover; display: block;
+  aspect-ratio: 16 / 9;
+}
+.play-btn {
+  position: absolute; inset: auto auto 8px 8px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,.45);
+  padding: 6px 10px; border-radius: 999px; color: var(--fg);
+  cursor: pointer;
+}
+.card .body { padding: 10px 10px 12px 0; }
+.card .title { margin: 4px 0 6px; font-size: 16px; }
+.card .meta { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
+.card .snippet { margin: 0 0 8px; color: #c9d3df; font-size: 14px; }
+.read-more, .open-youtube {
+  display: inline-block; text-decoration: none; color: var(--accent);
+  border-bottom: 1px dashed var(--accent);
+}
+
+/* Accessibility & motion */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
+  .tab { transition: none; }
+}

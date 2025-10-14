@@ -1,77 +1,91 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="bg">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Моите новини</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Site News</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="preconnect" href="https://i.ytimg.com" crossorigin>
+  <meta name="theme-color" content="#0f172a">
 </head>
 <body>
-  <div class="app">
-    <!-- Sidebar / Dock -->
-    <aside id="sidebar" aria-label="Навигация">
-      <div class="brand">📰 Моите новини</div>
-      <div class="cats-loading">Зареждам меню...</div>
-    </aside>
-
-    <!-- Main -->
-    <main id="main">
-      <div class="top">
-        <div class="left-actions">
-          <button id="collapseToggle" class="icon-btn desktop-only" title="Свий/разгърни">⟨⟩</button>
-        </div>
-
-        <!-- Top mode switch -->
-        <div class="mode-switch" role="tablist" aria-label="Режими">
-          <button id="modeNews" class="mode-btn active" role="tab" aria-selected="true" data-mode="news">Новини</button>
-          <button id="modeVideos" class="mode-btn" role="tab" aria-selected="false" data-mode="videos">Видеа</button>
-        </div>
-
-        <h2 class="headline">Последни новини</h2>
-      </div>
-
-      <div id="status" class="status"></div>
-
-      <!-- Филтри -->
-      <section class="filters">
-        <div class="time-filters scroller">
-          <button class="chip" data-filter="today">Днес</button>
-          <button class="chip" data-filter="week">Тази седмица</button>
-          <button class="chip" data-filter="month">Този месец</button>
-          <button class="chip active" data-filter="all">Всички</button>
-        </div>
-        <div class="category-filter">
-          <label for="categorySelect" class="cat-label">Категория:</label>
-          <select id="categorySelect">
-            <option value="all">Всички</option>
-          </select>
-        </div>
-      </section>
-
-      <!-- Списък -->
-      <div id="list" class="list">
-        <div class="placeholder">Използвай менюто, за да заредиш новини или видеа.</div>
-      </div>
-    </main>
-  </div>
-
-  <!-- Reader -->
-  <div id="reader" class="reader" style="display:none" aria-hidden="true">
-    <div class="reader-backdrop"></div>
-    <div class="reader-panel">
-      <div class="reader-bar">
-        <div class="reader-title">Четец</div>
-        <button id="readerClose" class="btn">Затвори</button>
-      </div>
-      <div id="readerContent" class="reader-content"></div>
+  <header class="topbar" role="banner">
+    <div class="topbar-inner">
+      <button id="sidebarToggle" class="icon-btn" aria-label="Меню" aria-expanded="false" aria-controls="sidebar">
+        ☰
+      </button>
+      <h1 class="logo">Site News</h1>
+      <nav class="tabs" aria-label="Основни раздели">
+        <button class="tab is-active" data-tab="news" aria-selected="true">News</button>
+        <button class="tab" data-tab="videos" aria-selected="false">Videos</button>
+      </nav>
     </div>
-  </div>
+  </header>
 
-  <!-- JS (в една папка) -->
-  <script src="utils.js"></script>
-  <script src="parser.js"></script>
-  <script src="reader.js"></script>
-  <script src="videos.js"></script>
-  <script src="main.js"></script>
+  <aside id="sidebar" class="sidebar" aria-label="Странично меню">
+    <div class="sidebar-inner">
+      <div class="sidebar-section">
+        <h2>Топ теми</h2>
+        <ul class="pill-list" id="topicsList">
+          <!-- динамично -->
+        </ul>
+      </div>
+      <div class="sidebar-section">
+        <h2>Филтри</h2>
+        <label class="filter">
+          <input type="checkbox" id="filterLocal" /> Само България
+        </label>
+        <label class="filter">
+          <input type="checkbox" id="filterTech" /> Технологии
+        </label>
+      </div>
+    </div>
+  </aside>
+
+  <main id="content" class="content" role="main">
+    <section id="news" class="panel is-visible" aria-label="Новини">
+      <div id="newsList" class="cards"></div>
+    </section>
+    <section id="videos" class="panel" aria-label="Видео">
+      <div id="videosList" class="cards"></div>
+    </section>
+  </main>
+
+  <template id="newsCardTpl">
+    <article class="card article">
+      <div class="media">
+        <img class="thumb" alt="" loading="lazy" />
+      </div>
+      <div class="body">
+        <h3 class="title"></h3>
+        <p class="meta"></p>
+        <p class="snippet"></p>
+        <a class="read-more" target="_blank" rel="noopener noreferrer">Отвори</a>
+      </div>
+    </article>
+  </template>
+
+  <template id="videoCardTpl">
+    <article class="card video">
+      <div class="media">
+        <img class="thumb" alt="" loading="lazy" />
+        <button class="play-btn" aria-label="Пусни видеото">▶</button>
+      </div>
+      <div class="body">
+        <h3 class="title"></h3>
+        <p class="meta"></p>
+        <a class="open-youtube">Отвори в YouTube</a>
+      </div>
+    </article>
+  </template>
+
+  <script>
+    // iOS viewport height fix (100vh -> 100dvh fallback)
+    document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+    window.addEventListener('resize', () => {
+      document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+    }, { passive: true });
+  </script>
+  <script defer src="./app.js"></script>
 </body>
 </html>
