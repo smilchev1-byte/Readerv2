@@ -24,36 +24,72 @@ body {
   font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, system-ui;
   display: flex;
   min-height: 100%;
-  transition: background .3s, color .3s;
-}
-
-.app {
-  display: grid;
-  grid-template-columns: 220px 1fr;
+  transition: background .3s, color ..app {
+  display: flex;
   width: 100%;
-  transition: grid-template-columns .3s;
+  height: 100vh;
+  overflow: hidden;
 }
 
-/* ==== SIDEBAR ==== */
+/* Sidebar */
 aside {
   background: var(--panel);
   border-right: 1px solid var(--border);
   padding: 10px 6px;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  height: 100vh;
   width: 220px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: transform .3s ease, width .3s ease;
   z-index: 50;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  transition: transform .3s ease;
 }
+
+/* Основна част */
+main {
+  flex: 1;
+  margin-left: 220px;         /* ✅ това връща правилното изместване */
+  overflow-y: auto;
+  position: relative;
+  background: var(--bg);
+  transition: margin-left .3s ease;
+}
+
+/* Когато sidebar е скрит (на мобилно или при collapse) */
+body.sidebar-collapsed main {
+  margin-left: 74px;
+}
+
+/* === Mobile behaviour === */
+@media (max-width: 768px) {
+  aside {
+    transform: translateX(-100%);
+    width: 250px;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.4);
+  }
+  body.sidebar-open aside {
+    transform: translateX(0);
+  }
+  main {
+    margin-left: 0; /* ✅ на мобилно няма отстъп */
+  }
+  body.sidebar-open::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 40;
+  }
+}
+
+
 
 .brand {
   font-weight: 700;
