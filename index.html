@@ -4,10 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Моите новини</title>
-
 <link rel="stylesheet" href="style.css">
-
-<!-- PWA (по желание) -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f1418">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,14 +13,13 @@
 </head>
 <body>
   <div class="app">
-    <!-- Sidebar (зарежда sidebar.html) -->
+    <!-- Sidebar -->
     <aside id="sidebar" aria-label="Навигация">
       <div class="brand">📰 Моите новини</div>
       <div class="cats-loading">Зареждам меню...</div>
     </aside>
 
     <main id="main">
-      <!-- Top bar -->
       <div class="top">
         <div class="left-actions">
           <button id="menuToggle" class="icon-btn" aria-label="Отвори меню">☰</button>
@@ -34,7 +30,6 @@
 
       <div id="status" class="status"></div>
 
-      <!-- Filters -->
       <section class="filters">
         <div class="time-filters scroller">
           <button class="chip" data-filter="today">Днес</button>
@@ -50,328 +45,100 @@
         </div>
       </section>
 
-      <!-- News list -->
       <div id="list" class="list">
-        <div class="placeholder">
-          Използвай <b>менюто</b> отляво, за да заредиш новини.
-        </div>
+        <div class="placeholder">Използвай <b>менюто</b> отляво, за да заредиш новини.</div>
       </div>
     </main>
   </div>
 
   <!-- Reader -->
-  <div id="reader" class="reader" style="display:none" aria-hidden="true" role="dialog" aria-modal="true">
+  <div id="reader" class="reader" style="display:none" aria-hidden="true">
     <div class="reader-backdrop"></div>
     <div class="reader-panel">
       <div class="reader-bar">
         <div class="reader-title">Четец</div>
-        <div class="reader-actions">
-          <button id="readerClose" class="btn">Затвори</button>
-        </div>
+        <button id="readerClose" class="btn">Затвори</button>
       </div>
       <div id="readerContent" class="reader-content"></div>
     </div>
   </div>
 
 <script>
-/* ===== Helpers ===== */
+const DEFAULT_ICON = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f4f0.svg'; // 📰
+
 const $ = s => document.querySelector(s);
-const statusEl = $('#status'), listEl = $('#list'), sidebarEl = $('#sidebar'), mainEl = $('#main');
-function setStatus(msg){ statusEl.textContent = msg || ''; }
-function clearList(){ listEl.innerHTML=''; }
-function placeholder(msg){ const d=document.createElement('div'); d.className='placeholder'; d.innerHTML=msg; listEl.appendChild(d); }
-function parseHTML(html){ return new DOMParser().parseFromString(html,'text/html'); }
-function absURL(base, rel){ try{ return new URL(rel, base).href }catch{ return rel } }
-function sanitize(node){ node.querySelectorAll('script,style,iframe,object,embed,noscript').forEach(n=>n.remove()); return node; }
-function fixRelativeURLs(node, baseHref){
-  node.querySelectorAll('[href]').forEach(a=> a.setAttribute('href', absURL(baseHref, a.getAttribute('href'))));
-  node.querySelectorAll('[src]').forEach(el=> el.setAttribute('src', absURL(baseHref, el.getAttribute('src'))));
-  node.querySelectorAll('[srcset]').forEach(el=>{
-    const parts=(el.getAttribute('srcset')||'').split(',').map(s=>s.trim()).filter(Boolean);
-    el.setAttribute('srcset', parts.map(p=>{const [u,d]=p.split(/\s+/); return absURL(baseHref,u)+(d?(' '+d):'')}).join(', '));
-  });
-  return node;
-}
+const listEl = $('#list'), sidebarEl = $('#sidebar'), mainEl = $('#main');
+function setStatus(msg){ $('#status').textContent = msg||''; }
+function parseHTML(h){return new DOMParser().parseFromString(h,'text/html');}
+function absURL(b,r){try{return new URL(r,b).href}catch{return r}}
+function sanitize(n){n.querySelectorAll('script,style,iframe').forEach(x=>x.remove());return n;}
 
-/* ===== JSON-LD extractor (вкл. @graph) ===== */
-function extractArticleFromLdJson(html){
-  const scripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
-  const pickDate = o => o?.dateModified || o?.datePublished || null;
-
-  const tryOne = obj => {
-    if (!obj || typeof obj !== 'object') return null;
-    if (obj.articleBody) return { body: obj.articleBody, date: pickDate(obj) };
-    if (Array.isArray(obj)) { for (const it of obj) { const r = tryOne(it); if (r) return r; } }
-    if (obj['@graph']) return tryOne(obj['@graph']);
-    if (obj.mainEntityOfPage) return tryOne(obj.mainEntityOfPage);
-    return null;
-  };
-
-  for (const tag of scripts) {
-    try {
-      const jsonText = tag.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
-      const data = JSON.parse(jsonText);
-      const found = tryOne(data);
-      if (found) return found;
-    } catch {}
-  }
-  return null;
-}
-
-/* ===== Парсване на списък ===== */
-function selectRawBlocks(doc){
-  return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
-}
-
-function toCardElement(rawHTML, baseHref){
-  const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
-  const wrap = fragDoc.getElementById('wrap');
-  sanitize(wrap);
-  fixRelativeURLs(wrap, baseHref);
-
-  const img = wrap.querySelector('img');
-  const imgSrc = img?.getAttribute('src') || '';
-
-  const h = wrap.querySelector('h1,h2,h3');
-  const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || wrap.textContent || '(без заглавие)').trim();
-
-  const rawLink = (h?.querySelector('a[href]')?.getAttribute('href')) || wrap.querySelector('a[href]')?.getAttribute('href') || '';
-  const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
-
-  let isoDate = '', formattedDate = '';
-  const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
-  const dateText = t ? (t.getAttribute('datetime') || t.content || '') : '';
-  if (dateText) {
-    const d = new Date(dateText);
-    if (!isNaN(d)) { isoDate = d.toISOString(); formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'}); }
-  }
-
-  const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
-  const category = breadcrumb ? breadcrumb.textContent.trim() : '';
-
-  let source = ''; try { source = new URL(baseHref).hostname.replace(/^www\./,''); } catch {}
-
-  const card = document.createElement('div');
-  card.className='card-row';
-  if (isoDate) card.dataset.date = isoDate;
-  if (category) card.dataset.category = category;
-  if (linkAbs) card.dataset.href = linkAbs;
-
-  card.innerHTML = `
-    <div class="thumb">${imgSrc?`<img src="${imgSrc}" alt="">`:'<span>no image</span>'}</div>
-    <div class="right-side">
-      <div class="header-row">
-        <h3 class="title"><a href="#">${title}</a></h3>
-        ${formattedDate?`<div class="meta-date">🕒 ${formattedDate}</div>`:''}
-      </div>
-      <div class="meta">${source}${category?` • ${category}`:''}</div>
-    </div>`;
-
-  card.querySelector('a').addEventListener('click', e=>{
-    e.preventDefault();
-    const href = card.dataset.href || '';
-    if (!href) { setStatus('❌ Липсва линк към статия.'); return; }
-    openReader(href);
-  });
-
-  return card;
-}
-
-async function importURL(url){
-  if(!url){ setStatus('Невалиден URL.'); return; }
-  setStatus('⏳ Зареждам новини…');
-  try{
-    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res  = await fetch(prox, {mode:'cors'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const html = await res.text();
-    const doc  = parseHTML(html);
-    renderCardsFromDoc(doc, url);
-    setStatus('');
-  }catch(e){ setStatus('❌ CORS/HTTP грешка: '+e.message); }
-}
-
-function renderCardsFromDoc(doc, baseHref){
-  const raw = selectRawBlocks(doc);
-  clearList();
-  if(!raw.length){ placeholder('Няма намерени елементи.'); return; }
-  raw.forEach(node => listEl.appendChild(toCardElement(node.outerHTML, baseHref)));
-  populateCategories();
-}
-
-/* ===== Sidebar ===== */
 async function loadSidebar(){
   try{
     const html = await fetch('sidebar.html').then(r=>r.text());
     sidebarEl.innerHTML = html;
 
-    // 1) Инжектиране на favicon от data-icon (ако има)
-    sidebarEl.querySelectorAll('.cat,[data-url]').forEach(el=>{
-      // нормализирай клас .cat
+    sidebarEl.querySelectorAll('[data-url]').forEach(el=>{
       el.classList.add('cat');
-
-      const labelText = (el.textContent||'').trim();
-      if (!el.querySelector('.label')) {
-        const span = document.createElement('span');
-        span.className = 'label';
-        span.textContent = labelText;
-        el.innerHTML = ''; // изчистваме оригиналния текст
-        // добавяме иконата, ако има
-        const iconUrl = el.getAttribute('data-icon');
-        if (iconUrl) {
-          const img = document.createElement('img');
-          img.className = 'fav';
-          img.alt = '';
-          img.referrerPolicy = 'no-referrer';
-          img.src = iconUrl; // линкът се задава в sidebar.html
-          el.appendChild(img);
-        }
-        el.appendChild(span);
-      }
-      // заглавие за tooltip при свито меню
-      if (!el.title) el.title = labelText || el.getAttribute('data-url') || '';
+      const labelText = el.textContent.trim();
+      el.innerHTML='';
+      const icon = el.getAttribute('data-icon')||DEFAULT_ICON;
+      const img=document.createElement('img');img.src=icon;img.className='fav';img.alt='';
+      const span=document.createElement('span');span.className='label';span.textContent=labelText;
+      el.append(img,span);
+      el.title=labelText;
     });
 
-    // 2) Обработка клик по елемент с data-url
-    sidebarEl.addEventListener('click', e=>{
-      const target = e.target.closest('[data-url]');
-      if(!target) return;
-      e.preventDefault();
-      importURL(target.getAttribute('data-url'));
-      // мобилно: затвори off-canvas
-      document.body.classList.remove('sidebar-open');
+    sidebarEl.addEventListener('click',e=>{
+      const btn=e.target.closest('[data-url]');
+      if(!btn)return;
+      importURL(btn.dataset.url);
     });
-  }catch{
-    sidebarEl.innerHTML = '<div class="placeholder">❌ Не успях да заредя sidebar.html</div>';
-  }
+  }catch{sidebarEl.innerHTML='<div class="placeholder">❌ Не успях да заредя меню.</div>';}
 }
 loadSidebar();
 
-/* ===== Отваряне/скриване на меню ===== */
-$('#menuToggle').addEventListener('click',()=>document.body.classList.toggle('sidebar-open'));
-
-// Свиване в мини-рейл (само десктоп): показва само фавиконите, кликаеми
-const collapseBtn = $('#collapseToggle');
-collapseBtn.addEventListener('click', ()=>{
-  document.body.classList.toggle('sidebar-collapsed');
-});
-
-// клик извън менюто = затваряне на off-canvas (мобилно)
-document.addEventListener('click',e=>{
-  if(document.body.classList.contains('sidebar-open')){
-    if(!$('#sidebar').contains(e.target)&&!$('#menuToggle').contains(e.target))
-      document.body.classList.remove('sidebar-open');
-  }
-});
-
-/* ===== Разделяне на абзаци ===== */
-function splitIntoSentenceParagraphs(text, groupSize = 3){
-  const sentenceRegex = /[^.!?]+[.!?]+["']?\s*/g;
-  const sentences = text.match(sentenceRegex) || [text];
-  const groups = [];
-  for (let i = 0; i < sentences.length; i += groupSize) {
-    const group = sentences.slice(i, i + groupSize).join(' ').trim();
-    if (group) groups.push(group);
-  }
-  return groups;
+/* === importURL & render (кратко, само идеята) === */
+async function importURL(url){
+  setStatus('⏳ Зареждам новини…');
+  const prox=`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+  const res=await fetch(prox);const html=await res.text();
+  const doc=parseHTML(html);
+  const blocks=doc.querySelectorAll('div.card.pt-4.pb-4.ad0,div.card.pt-4.pb-4.ad3');
+  listEl.innerHTML='';
+  blocks.forEach(b=>listEl.appendChild(toCard(b.outerHTML,url)));
+  setStatus('');
+}
+function toCard(html,base){
+  const d=parseHTML('<div>'+html+'</div>');
+  const img=d.querySelector('img');const src=img?absURL(base,img.src):'';
+  const h=d.querySelector('h1,h2,h3');const title=h?h.textContent.trim():'(без заглавие)';
+  const link=h?.querySelector('a[href]')?.href||d.querySelector('a[href]')?.href||'';
+  const a=document.createElement('div');a.className='card-row';a.innerHTML=
+  `<div class="thumb">${src?`<img src="${src}">`:'<span>no</span>'}</div>
+   <div class="right-side"><div class="header-row"><h3 class="title"><a href="#">${title}</a></h3></div></div>`;
+  a.querySelector('a').onclick=e=>{e.preventDefault();openReader(link)};
+  return a;
 }
 
-/* ===== Reader ===== */
+/* === Reader simplified === */
 const reader=$('#reader'), readerContent=$('#readerContent');
-$('#readerClose').addEventListener('click',()=>{ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; });
-reader.addEventListener('click',e=>{ if(e.target.classList.contains('reader-backdrop')){ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; } });
-
+$('#readerClose').onclick=()=>{reader.style.display='none';};
 async function openReader(url){
-  if (!url) { setStatus('❌ Невалиден URL за статия.'); return; }
-  setStatus('⏳ Зареждам статия за четене…');
-  try{
-    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res  = await fetch(prox, { mode:'cors' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const html = await res.text();
-    const doc  = parseHTML(html);
-
-    // 1) JSON-LD (вкл. @graph)
-    const fromLd = extractArticleFromLdJson(html);
-    let articleText = fromLd?.body || null;
-    let dateText    = fromLd?.date || '';
-
-    // 2) Fallback към основен контейнер
-    if (!articleText) {
-      const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
-      if (main) { sanitize(main); articleText = main.innerText.trim(); }
-    }
-
-    // 3) Дата – ако липсва
-    if (!dateText) {
-      const t = doc.querySelector('time[datetime], meta[property="article:published_time"]');
-      dateText = t ? (t.getAttribute?.('datetime') || t.content || '') : '';
-    }
-    let fDate = '';
-    if (dateText) {
-      const d = new Date(dateText);
-      if (!isNaN(d)) fDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-    }
-
-    // 4) Корица
-    const pic = doc.querySelector('picture.img--title.landscape, article picture, .article picture, figure picture');
-    const imgHTML = pic ? pic.outerHTML : '';
-
-    if (articleText) {
-      const paras = splitIntoSentenceParagraphs(articleText, 3);
-      readerContent.innerHTML = `${imgHTML}${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}${paras.map((p,i)=>`<p class="${i===0?'lead':''}">${p}</p>`).join('')}`;
-      reader.style.display='block';
-      reader.setAttribute('aria-hidden','false');
-      setStatus('');
-    } else {
-      setStatus('❌ Не успях да извлека съдържанието на статията.');
-    }
-  }catch(e){
-    setStatus('❌ Грешка при зареждане: '+e.message+' — сайтът може да блокира през прокси.');
-  }
+  const prox=`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+  const res=await fetch(prox);const html=await res.text();const doc=parseHTML(html);
+  const article=doc.querySelector('article')||doc.querySelector('.article')||doc.body;
+  sanitize(article);
+  const text=article.innerText.trim().split(/\n{2,}/).map(p=>`<p>${p}</p>`).join('');
+  readerContent.innerHTML=text;reader.style.display='block';
 }
 
-/* ===== Филтри по време ===== */
-document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active'); applyDateFilter(b.dataset.filter);
-}));
-function applyDateFilter(f){
-  const now=new Date();
-  document.querySelectorAll('.card-row').forEach(c=>{
-    const dStr=c.dataset.date; if(!dStr){ c.style.display=''; return; }
-    const d=new Date(dStr); let show=true;
-    if(f==='today') show = d.toDateString()===now.toDateString();
-    else if(f==='week') show = (now-d)/(1000*60*60*24)<=7;
-    else if(f==='month') show = (now-d)/(1000*60*60*24)<=31;
-    c.style.display = show ? '' : 'none';
-  });
-}
-
-/* ===== Филтър по категория ===== */
-const catSel=$('#categorySelect');
-function populateCategories(){
-  const cats=new Set();
-  document.querySelectorAll('.card-row[data-category]').forEach(c=>{ if(c.dataset.category) cats.add(c.dataset.category); });
-  catSel.innerHTML='<option value="all">Всички</option>'+[...cats].sort().map(c=>`<option>${c}</option>`).join('');
-}
-catSel.addEventListener('change',()=>{
-  const sel=catSel.value;
-  document.querySelectorAll('.card-row').forEach(c=>{
-    c.style.display=(sel==='all'||c.dataset.category===sel)?'':'none';
-  });
-});
-
-/* ===== Скрий „Последни новини“ при скрол надолу ===== */
-let lastScrollTop = 0;
-mainEl.addEventListener('scroll', ()=>{
-  const st = mainEl.scrollTop;
-  if (st > lastScrollTop && st > 30) {
-    document.body.classList.add('scrolling-down');
-  } else {
-    document.body.classList.remove('scrolling-down');
-  }
-  lastScrollTop = st <= 0 ? 0 : st;
+/* === Hide title on scroll === */
+let last=0;mainEl.addEventListener('scroll',()=>{
+  const st=mainEl.scrollTop;
+  if(st>last&&st>30)document.body.classList.add('scrolling-down');
+  else document.body.classList.remove('scrolling-down');
+  last=st<=0?0:st;
 });
 </script>
 </body>
