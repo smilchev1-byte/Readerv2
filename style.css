@@ -56,6 +56,42 @@ body.sidebar-collapsed aside:hover .label {
   box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
 
+/* === Collapse Sidebar === */
+body.sidebar-collapsed aside {
+  width: 64px;
+  overflow-x: hidden;
+  transition: width 0.3s ease;
+}
+
+body.sidebar-collapsed aside .label {
+  display: none;
+}
+
+body.sidebar-collapsed .app {
+  grid-template-columns: 64px 1fr;
+}
+
+body.sidebar-collapsed .brand {
+  display: none;
+}
+/* === Collapse Sidebar === */
+body.sidebar-collapsed aside {
+  width: 64px;
+  overflow-x: hidden;
+  transition: width 0.3s ease;
+}
+
+body.sidebar-collapsed aside .label {
+  display: none;
+}
+
+body.sidebar-collapsed .app {
+  grid-template-columns: 64px 1fr;
+}
+
+body.sidebar-collapsed .brand {
+  display: none;
+}
 
 
 @media (max-width: 1024px){ .desktop-only{display:none} }
