@@ -233,26 +233,55 @@ body.sidebar-collapsed .cat{width:56px; justify-content:center}
 body.sidebar-collapsed .cat .label{display:none}
 body.sidebar-collapsed .brand{display:none}
 
-/* === Mobile Sidebar === */
-@media (max-width:768px){
-  aside{
-    transform:translateX(-100%);
-    width:250px;
-    box-shadow:4px 0 20px rgba(0,0,0,0.4);
+/* === Mobile Sidebar (напълно съвместим с iPhone Safari) === */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
   }
-  body.sidebar-open aside{
-    transform:translateX(0);
+
+  aside {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: var(--panel);
+    width: 250px;
+    transform: translate3d(-100%, 0, 0);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.45);
+    will-change: transform;
+    z-index: 200;
   }
-  main{
-    margin-left:0;
+
+  /* ✅ когато е отворено */
+  body.sidebar-open aside {
+    transform: translate3d(0, 0, 0);
   }
-  body.sidebar-open::after{
-    content:"";
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,0.5);
-    backdrop-filter:blur(2px); /* 💡 лек iOS стил blur */
-    z-index:40;
+
+  main {
+    margin-left: 0;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* overlay */
+  body.sidebar-open::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 150;
+    transition: opacity 0.3s ease;
+    opacity: 1;
+  }
+
+  body::after {
+    opacity: 0;
+    pointer-events: none;
   }
 }
 
