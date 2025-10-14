@@ -2,17 +2,62 @@
 <html lang="bg">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Моите новини</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
-    <aside id="sidebar"></aside>
+    <!-- Mini dock / Sidebar -->
+    <aside id="sidebar" aria-label="Навигация">
+      <div class="brand">📰 Моите новини</div>
+      <div class="cats-loading">Зареждам меню...</div>
+    </aside>
+
+    <!-- Main -->
     <main id="main">
-      <h2 class="headline">Последни новини</h2>
-      <div id="list"></div>
+      <div class="top">
+        <div class="left-actions">
+          <button id="collapseToggle" class="icon-btn desktop-only" title="Свий/разгърни">⟨⟩</button>
+        </div>
+        <h2 class="headline">Последни новини</h2>
+      </div>
+
+      <div id="status" class="status"></div>
+
+      <!-- Филтри -->
+      <section class="filters">
+        <div class="time-filters scroller">
+          <button class="chip" data-filter="today">Днес</button>
+          <button class="chip" data-filter="week">Тази седмица</button>
+          <button class="chip" data-filter="month">Този месец</button>
+          <button class="chip active" data-filter="all">Всички</button>
+        </div>
+        <div class="category-filter">
+          <label for="categorySelect" class="cat-label">Категория:</label>
+          <select id="categorySelect">
+            <option value="all">Всички</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Списък с новини -->
+      <div id="list" class="list">
+        <div class="placeholder">Използвай <b>менюто</b> отляво, за да заредиш новини.</div>
+      </div>
     </main>
+  </div>
+
+  <!-- Reader -->
+  <div id="reader" class="reader" style="display:none" aria-hidden="true">
+    <div class="reader-backdrop"></div>
+    <div class="reader-panel">
+      <div class="reader-bar">
+        <div class="reader-title">Четец</div>
+        <button id="readerClose" class="btn">Затвори</button>
+      </div>
+      <div id="readerContent" class="reader-content"></div>
+    </div>
   </div>
 
   <!-- JS модули -->
