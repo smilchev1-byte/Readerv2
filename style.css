@@ -223,3 +223,49 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
     overflow: hidden;
   }
 }
+
+
+/* ---- FINAL iPhone Safari drawer fix (no transforms) ---- */
+@media (max-width:768px){
+  /* Sidebar остава fixed и се плъзга от -240px до 0 */
+  aside{
+    position:fixed !important;
+    top:0; left:-240px; width:220px; height:100vh;
+    z-index:1000 !important;
+  }
+  body.sidebar-open aside{ left:0; }
+
+  /* Вместо transform на main: изместваме цялата страница с padding-left */
+  html, body { width:100%; }
+  body{
+    transition: padding-left .3s ease;
+    overflow-x:hidden;
+  }
+  body.sidebar-open{
+    padding-left:220px;         /* избутва съдържанието вдясно */
+    overflow:hidden;            /* спира скрола отзад */
+  }
+
+  /* Премахни ВСЯКАКВИ translateX правила ако ги имаш по-нагоре */
+  body.sidebar-open main{ transform:none !important; }
+  .app{ display:block; }        /* избягваме grid странности в iOS */
+  main{ position:relative; }    /* стабилен контекст за съдържанието */
+
+  /* Overlay (реален блокер; не само визуален) */
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.45);
+    backdrop-filter:blur(2px);
+    opacity:0; visibility:hidden;
+    pointer-events:none;        /* изключено когато менюто е затворено */
+    transition:opacity .3s ease;
+    z-index:999;
+  }
+  body.sidebar-open::after{
+    opacity:1; visibility:visible; pointer-events:auto;
+  }
+
+  /* Sticky header да не се бие със sidebar */
+  .top{ position:relative !important; z-index:auto !important; }
+}
