@@ -70,22 +70,38 @@ async function loadSidebar(){
 function wireModeSwitch(){
   const btnNews   = document.getElementById('modeNews');
   const btnVideos = document.getElementById('modeVideos');
-  btnNews.addEventListener('click', ()=>{
-    if (MODE==='news') return;
-    MODE='news';
-    btnNews.classList.add('active'); btnVideos.classList.remove('active');
-    document.querySelector('.headline').textContent = 'Последни новини';
-    document.getElementById('list').innerHTML = '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
-    loadSidebar();
-  });
-  btnVideos.addEventListener('click', ()=>{
-    if (MODE==='videos') return;
-    MODE='videos';
-    btnVideos.classList.add('active'); btnNews.classList.remove('active');
-    document.querySelector('.headline').textContent = 'Последни видеа';
-    document.getElementById('list').innerHTML = '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
-    loadSidebar();
-  });
+ btnNews.addEventListener('click', () => {
+  if (MODE === 'news') return;
+  MODE = 'news';
+  btnNews.classList.add('active');
+  btnVideos.classList.remove('active');
+  document.querySelector('.headline').textContent = 'Последни новини';
+
+  // показваме филтрите само за новини
+  document.getElementById('filters-news').style.display = 'flex';
+  document.getElementById('filters-videos').style.display = 'none';
+
+  document.getElementById('list').innerHTML =
+    '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
+  loadSidebar();
+});
+
+btnVideos.addEventListener('click', () => {
+  if (MODE === 'videos') return;
+  MODE = 'videos';
+  btnVideos.classList.add('active');
+  btnNews.classList.remove('active');
+  document.querySelector('.headline').textContent = 'Последни видеа';
+
+  // скриваме филтрите за новини
+  document.getElementById('filters-news').style.display = 'none';
+  document.getElementById('filters-videos').style.display = 'flex';
+
+  document.getElementById('list').innerHTML =
+    '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
+  loadSidebar();
+});
+
 }
 
 // Скрол hide за headline
