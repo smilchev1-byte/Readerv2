@@ -196,3 +196,28 @@ main{padding:20px 20px 28px; overflow:auto}
   .btn, .chip{padding:10px 12px}
   .thumb{width:68px; height:50px}
 }
+
+.reader-content{
+  padding:18px;
+  max-width: 70ch;          /* приятна дължина на реда */
+  margin: 0 auto;           /* центрира в панела */
+}
+.reader-content p{
+  margin:0 0 1.2em 0;
+  font-size:18px;
+  line-height:1.65;
+}
+.reader-content p.lead{
+  font-weight:700;
+  font-size:20px;
+}
+.reader-date{
+  font-size:14px;
+  color:var(--muted);
+  margin: 0 0 16px 0;
+  text-align:right;
+}
+@media (max-width: 768px){
+  .reader-content{ padding:16px; max-width: 88ch; }
+  .reader-content p{ font-size:17px; line-height:1.7; }
+}
