@@ -155,3 +155,15 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   .meta-date{font-size:12px}
   .thumb{width:68px; height:50px}
 }
+
+/* iOS Safari fix – превключвателят да не излиза над sidebar-а */
+@supports (-webkit-touch-callout: none) {
+  .top {
+    position: relative !important;
+    z-index: auto !important;
+  }
+  .mode-switch {
+    position: relative;
+    z-index: 5;
+  }
+}
