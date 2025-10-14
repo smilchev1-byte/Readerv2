@@ -18,7 +18,7 @@
     <main id="main">
       <div class="top">
         <div class="left-actions">
-          <button id="collapseToggle" class="icon-btn desktop-only" title="Свий/разгърни">⟨⟩</button>
+          <button id="collapseToggle" class="icon-btn" title="Меню">☰</button>
         </div>
 
         <!-- Top mode switch -->
@@ -32,30 +32,29 @@
 
       <div id="status" class="status"></div>
 
-    <!-- Филтри -->
-<section class="filters" id="filters-news">
-  <div class="filter-group">
-    <label for="timeSelect" class="cat-label">Период:</label>
-    <select id="timeSelect">
-      <option value="all" selected>Всички</option>
-      <option value="today">Днес</option>
-      <option value="week">Тази седмица</option>
-      <option value="month">Този месец</option>
-    </select>
-  </div>
-  <div class="category-filter">
-    <label for="categorySelect" class="cat-label">Категория:</label>
-    <select id="categorySelect">
-      <option value="all">Всички</option>
-    </select>
-  </div>
-</section>
+      <!-- Филтри за Новини -->
+      <section class="filters" id="filters-news">
+        <div class="filter-group">
+          <label for="timeSelect" class="cat-label">Период:</label>
+          <select id="timeSelect">
+            <option value="all" selected>Всички</option>
+            <option value="today">Днес</option>
+            <option value="week">Тази седмица</option>
+            <option value="month">Този месец</option>
+          </select>
+        </div>
+        <div class="category-filter">
+          <label for="categorySelect" class="cat-label">Категория:</label>
+          <select id="categorySelect">
+            <option value="all">Всички</option>
+          </select>
+        </div>
+      </section>
 
-<!-- филтри за бъдещи табове -->
-<section class="filters" id="filters-videos" style="display:none">
-  <!-- по-късно ще добавим собствени филтри за видеа -->
-</section>
-
+      <!-- Филтри за Видеа (празно за сега) -->
+      <section class="filters" id="filters-videos" style="display:none">
+        <!-- бъдещи филтри за видеа -->
+      </section>
 
       <!-- Списък -->
       <div id="list" class="list">
@@ -76,7 +75,7 @@
     </div>
   </div>
 
-  <!-- JS (в една папка) -->
+  <!-- JS -->
   <script src="utils.js"></script>
   <script src="parser.js"></script>
   <script src="reader.js"></script>
