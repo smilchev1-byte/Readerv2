@@ -156,92 +156,71 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   .thumb{width:68px; height:50px}
 }
 
-/* --- iOS Safari z-index fix for .top covering sidebar --- */
-.app {
-  position: relative;
-  isolation: isolate; /* нов контекст за слоеве, спира overlay bug */
-}
-
-.top {
-  position: sticky;
-  top: 0;
-  z-index: 1; /* достатъчно за headline, но под sidebar */
-}
-
-aside {
-  position: relative;
-  z-index: 2; /* винаги над .top и mode switch */
-}
-
-/* Допълнителна защита за превключвателя */
-.mode-switch {
-  z-index: 0;
-  position: relative;
-}
-
-/* --- iPhone / Mobile sidebar icons-only mode --- */
+/* --- Mobile slide-out sidebar --- */
 @media (max-width: 768px) {
-  /* по подразбиране: само иконки */
-  body:not(.sidebar-expanded) .app {
-    grid-template-columns: 60px 1fr !important;
+  .app {
+    grid-template-columns: 1fr; /* само основното съдържание */
   }
 
-  body:not(.sidebar-expanded) aside {
-    width: 60px !important;
-    align-items: center !important;
-    padding: 10px 4px;
+  aside {
+    position: fixed;
+    left: -240px;
+    top: 0;
+    height: 100vh;
+    width: 220px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    transition: left 0.3s ease;
+    z-index: 1000;
   }
 
-  body:not(.sidebar-expanded) .cat {
-    width: 48px !important;
-    justify-content: center !important;
+  body.sidebar-open aside {
+    left: 0;
   }
 
-  body:not(.sidebar-expanded) .cat .label {
-    display: none !important;
+  /* overlay фон зад sidebar */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
+    z-index: 999;
   }
 
-  body:not(.sidebar-expanded) .brand {
-    display: none !important;
+  body.sidebar-open::after {
+    opacity: 1;
+    visibility: visible;
   }
 
+  /* hamburger бутон винаги видим */
+  #collapseToggle {
+    display: inline-block !important;
+    font-size: 22px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 6px 10px;
+  }
+
+  /* по-малки иконки вътре */
   aside .fav {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 6px;
   }
 
-  /* разгръщане при докосване на бутона ⟨⟩ */
-  body.sidebar-expanded .app {
-    grid-template-columns: 200px 1fr !important;
-  }
-  body.sidebar-expanded aside {
-    width: 200px !important;
-    align-items: flex-start !important;
-  }
-  body.sidebar-expanded .cat .label {
-    display: inline-block !important;
-  }
-  body.sidebar-expanded .brand {
-    display: block !important;
+  .cat {
+    justify-content: flex-start !important;
+    gap: 10px;
   }
 }
 
-/* --- iOS Safari z-index fix for sticky header --- */
-.app {
-  position: relative;
-  isolation: isolate;
-}
-.top {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-aside {
-  position: relative;
-  z-index: 2;
-}
-.mode-switch {
-  z-index: 0;
-  position: relative;
-}
+/* Safari z-index fix */
+.app { position: relative; isolation: isolate; }
+.top { position: sticky; top: 0; z-index: 1; }
+aside { position: relative; z-index: 2; }
+.mode-switch { z-index: 0; position: relative; }
