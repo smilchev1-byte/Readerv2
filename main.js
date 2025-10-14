@@ -140,3 +140,14 @@ wireFilters();
 wireModeSwitch();
 wireScrollHide();
 loadSidebar();
+
+
+// Затваряне при тап върху overlay-а (извън менюто)
+document.addEventListener('click', (e)=>{
+  if (window.innerWidth > 768) return;
+  if (!document.body.classList.contains('sidebar-open')) return;
+  const aside = document.getElementById('sidebar');
+  const toggle = document.getElementById('collapseToggle');
+  const clickedInsideMenu = aside.contains(e.target) || toggle.contains(e.target);
+  if (!clickedInsideMenu) document.body.classList.remove('sidebar-open');
+}, true);
