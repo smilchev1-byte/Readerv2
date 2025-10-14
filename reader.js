@@ -1,4 +1,3 @@
-// JSON-LD extractor (вкл. @graph)
 function extractArticleFromLdJson(html){
   const scripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
   const pickDate = o => o?.dateModified || o?.datePublished || null;
@@ -23,7 +22,6 @@ function extractArticleFromLdJson(html){
   return null;
 }
 
-// Разбиване на текста на абзаци (по ~3 изречения)
 function splitIntoSentenceParagraphs(text, groupSize = 3){
   const sentenceRegex = /[^.!?]+[.!?]+["']?\s*/g;
   const sentences = text.match(sentenceRegex) || [text];
@@ -35,7 +33,6 @@ function splitIntoSentenceParagraphs(text, groupSize = 3){
   return groups;
 }
 
-// Основен четец
 const reader = $('#reader'), readerContent = $('#readerContent');
 $('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; });
 reader.addEventListener('click', e=>{ if(e.target.classList.contains('reader-backdrop')){ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; } });
@@ -87,4 +84,20 @@ async function openReader(url){
   }catch(e){
     setStatus('❌ Грешка при зареждане: '+e.message);
   }
+}
+
+/* YouTube embed в четеца */
+function openVideoInReader(videoId, title, publishedISO){
+  const fDate = (()=>{ const d=new Date(publishedISO); return isNaN(d)? '' : d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'}); })();
+  readerContent.innerHTML = `
+    ${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}
+    <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
+      <iframe src="https://www.youtube.com/embed/${videoId}" title="${title||'Video Player'}" frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%"></iframe>
+    </div>
+    <p class="lead">${title||''}</p>
+  `;
+  reader.style.display='block';
+  reader.setAttribute('aria-hidden','false');
 }
