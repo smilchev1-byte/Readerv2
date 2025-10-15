@@ -1,5 +1,5 @@
 // ============================
-// ✅ parser.js — финална стабилна версия (Cloudflare proxy + реални линкове)
+// ✅ parser.js — стабилен loader (Safari/Chrome) с proxy fallback
 // ============================
 
 // По-гъвкави селектори за различни сайтове
@@ -12,6 +12,36 @@ const SELECTORS = [
   '.c-article',                  // Mediapool
   '.l-article'                   // други
 ].join(',');
+
+// ---- Proxy fallback chain (ред по приоритет) ----
+const NEWS_PROXIES = [
+  (url) => `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}&t=${Date.now()}`, // твой CF Worker
+  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+];
+
+// ---- Fetch с таймаут и fallback по proxy списъка ----
+async function fetchWithProxies(url, { timeoutMs = 12000 } = {}) {
+  let lastErr;
+  for (const make of NEWS_PROXIES) {
+    const proxURL = make(url);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(proxURL, { mode: 'cors', signal: ctrl.signal, cache: 'no-store' });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      if (!text || text.length < 64) throw new Error('Empty body');
+      return text;
+    } catch (e) {
+      clearTimeout(timer);
+      lastErr = e;
+      // опитваме следващия proxy
+    }
+  }
+  throw lastErr || new Error('Proxy chain failed');
+}
 
 function selectRawBlocks(doc) {
   return Array.from(doc.querySelectorAll(SELECTORS));
@@ -31,11 +61,10 @@ function toCardElement(rawHTML, baseHref) {
   const h = wrap.querySelector('h1,h2,h3,h4');
   const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || '(без заглавие)').trim();
 
-  // линк (реален)
+  // линк (абсолютен)
   const rawLink =
     h?.querySelector('a[href]')?.getAttribute('href') ||
-    wrap.querySelector('a[href]')?.getAttribute('href') ||
-    '';
+    wrap.querySelector('a[href]')?.getAttribute('href') || '';
   const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
 
   // дата
@@ -77,7 +106,7 @@ function toCardElement(rawHTML, baseHref) {
       <div class="meta">${source}${category ? ` • ${category}` : ''}</div>
     </div>`;
 
-  // при клик → четец
+  // click → отваря четеца с реален URL
   card.querySelector('a').addEventListener('click', e => {
     e.preventDefault();
     const href = card.dataset.href || '';
@@ -88,24 +117,20 @@ function toCardElement(rawHTML, baseHref) {
   return card;
 }
 
-// === Импорт на URL (Cloudflare proxy) ===
+// === Импорт на URL чрез стабилен proxy fallback ===
 async function importURL(url) {
-  if (!url) return setStatus('Невалиден URL.');
+  if (!url) { setStatus('Невалиден URL.'); return; }
   setStatus('⏳ Зареждам новини…');
   try {
-    const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}`;
-    const res = await fetch(prox, { mode: 'cors' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const html = await res.text();
+    const html = await fetchWithProxies(url, { timeoutMs: 12000 });
     const doc = parseHTML(html);
     renderCardsFromDoc(doc, url);
     setStatus('');
   } catch (e) {
-    setStatus('❌ CORS/HTTP грешка: ' + e.message);
+    setStatus('❌ CORS/HTTP грешка: ' + (e?.message || e));
   }
 }
 
-// === Рендиране на картите ===
 function renderCardsFromDoc(doc, baseHref) {
   const listEl = $('#list');
   listEl.innerHTML = '';
