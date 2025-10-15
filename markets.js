@@ -1,5 +1,5 @@
 // ==========================
-// markets.js — пазарни данни + филтри в основната част
+// markets.js — sidebar с категории + динамични филтри
 // ==========================
 
 const MARKET_CATEGORIES = {
@@ -26,29 +26,30 @@ const MARKET_CATEGORIES = {
   ]
 };
 
-function renderMarketFilters(){
+// --- създаване на филтрите според категорията
+function renderMarketFilters(categoryKey){
   const container = document.getElementById('marketFilters');
   container.innerHTML = '';
 
-  Object.entries(MARKET_CATEGORIES).forEach(([key, items])=>{
-    const section = document.createElement('div');
-    section.className = 'market-section';
+  const items = MARKET_CATEGORIES[categoryKey];
+  if (!items){ container.innerHTML = '<div class="placeholder">Избери категория от менюто.</div>'; return; }
 
-    const title = document.createElement('h4');
-    title.textContent = key === 'stocks' ? '📈 Акции' :
-                        key === 'etfs' ? '💹 ETF-и' :
-                        '💰 Крипто';
-    section.appendChild(title);
+  const section = document.createElement('div');
+  section.className = 'market-section';
 
-    items.forEach(({symbol, name})=>{
-      const label = document.createElement('label');
-      label.innerHTML = `<input type="checkbox" checked data-symbol="${symbol}"> ${name} (${symbol})`;
-      section.appendChild(label);
-    });
+  const title = document.createElement('h4');
+  title.textContent = categoryKey === 'stocks' ? '📈 Акции' :
+                      categoryKey === 'etfs' ? '💹 ETF-и' :
+                      '💰 Криптовалути';
+  section.appendChild(title);
 
-    container.appendChild(section);
+  items.forEach(({symbol, name})=>{
+    const label = document.createElement('label');
+    label.innerHTML = `<input type="checkbox" checked data-symbol="${symbol}"> ${name} (${symbol})`;
+    section.appendChild(label);
   });
 
+  container.appendChild(section);
   container.style.display = 'block';
 
   const checkboxes = container.querySelectorAll('input[type=checkbox]');
@@ -60,6 +61,7 @@ function renderMarketFilters(){
   updateSelection();
 }
 
+// --- зареждане на пазарни данни от Yahoo Finance
 async function fetchMarketData(symbols){
   if(!symbols.length){
     document.getElementById('list').innerHTML = '<div class="placeholder">Избери поне един актив.</div>';
@@ -80,6 +82,7 @@ async function fetchMarketData(symbols){
   }
 }
 
+// --- визуализация на карти
 function renderMarketCards(data){
   const list = document.getElementById('list');
   list.innerHTML = '';
@@ -104,7 +107,7 @@ function renderMarketCards(data){
           <div class="meta-date">${new Date(item.regularMarketTime*1000).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})}</div>
         </div>
         <div class="meta">
-          💰 <strong>${price}</strong> 
+          💰 <strong>${price}</strong>
           <span style="color:${up?'#4bff6b':'#ff4b4b'}">${up?'▲':'▼'} ${percent}%</span>
         </div>
       </div>`;
@@ -112,4 +115,23 @@ function renderMarketCards(data){
   });
 }
 
-window.renderMarketFilters = renderMarketFilters;
+// --- зареждане на sidebar
+async function loadMarketsSidebar(){
+  const sidebarEl = document.getElementById('sidebar');
+  try{
+    const html = await fetch('./markets.html').then(r=>r.text());
+    sidebarEl.innerHTML = html;
+
+    sidebarEl.querySelectorAll('[data-market]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        sidebarEl.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
+        btn.classList.add('active');
+        renderMarketFilters(btn.dataset.market);
+      });
+    });
+  }catch(err){
+    sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя пазари<br>${err.message}</div>`;
+  }
+}
+
+window.loadMarketsSidebar = loadMarketsSidebar;
