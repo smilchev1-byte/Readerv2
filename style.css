@@ -220,52 +220,70 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
 
   /* спирам скрола на фона, докато е отворен sidebar */
   body.sidebar-open {
+    overflow: 
+
+
+/* ---- FINAL CLICK FIX for iPhone Safari ---- */
+@media (max-width:768px){
+
+  /* Sidebar над всичко */
+  aside {
+    position: fixed !important;
+    top: 0;
+    left: -240px;
+    width: 220px;
+    height: 100vh;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    z-index: 10000 !important; /* 🧩 по-висок от overlay */
+    transition: left 0.3s ease;
+  }
+  body.sidebar-open aside {
+    left: 0;
+  }
+
+  /* Overlay фон – зад sidebar, без да прихваща кликове */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none; /* ❗не прихваща кликове */
+    transition: opacity .3s ease;
+    z-index: 9999; /* малко под sidebar */
+  }
+  body.sidebar-open::after {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Избутване на съдържанието */
+  body {
+    transition: padding-left .3s ease;
+    overflow-x: hidden;
+  }
+  body.sidebar-open {
+    padding-left: 220px;
     overflow: hidden;
   }
-}
 
-
-/* ---- FINAL iPhone Safari drawer fix (no transforms) ---- */
-@media (max-width:768px){
-  /* Sidebar остава fixed и се плъзга от -240px до 0 */
-  aside{
-    position:fixed !important;
-    top:0; left:-240px; width:220px; height:100vh;
-    z-index:1000 !important;
-  }
-  body.sidebar-open aside{ left:0; }
-
-  /* Вместо transform на main: изместваме цялата страница с padding-left */
-  html, body { width:100%; }
-  body{
-    transition: padding-left .3s ease;
-    overflow-x:hidden;
-  }
-  body.sidebar-open{
-    padding-left:220px;         /* избутва съдържанието вдясно */
-    overflow:hidden;            /* спира скрола отзад */
+  /* Sticky header off за iOS */
+  .top {
+    position: relative !important;
+    z-index: auto !important;
   }
 
-  /* Премахни ВСЯКАКВИ translateX правила ако ги имаш по-нагоре */
-  body.sidebar-open main{ transform:none !important; }
-  .app{ display:block; }        /* избягваме grid странности в iOS */
-  main{ position:relative; }    /* стабилен контекст за съдържанието */
-
-  /* Overlay (реален блокер; не само визуален) */
-  body::after{
-    content:"";
-    position:fixed; inset:0;
-    background:rgba(0,0,0,.45);
-    backdrop-filter:blur(2px);
-    opacity:0; visibility:hidden;
-    pointer-events:none;        /* изключено когато менюто е затворено */
-    transition:opacity .3s ease;
-    z-index:999;
+  #collapseToggle {
+    display: inline-block !important;
+    font-size: 22px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 6px 10px;
+    cursor: pointer;
+    z-index: 10001; /* бутона остава кликаем */
   }
-  body.sidebar-open::after{
-    opacity:1; visibility:visible; pointer-events:auto;
-  }
-
-  /* Sticky header да не се бие със sidebar */
-  .top{ position:relative !important; z-index:auto !important; }
 }
