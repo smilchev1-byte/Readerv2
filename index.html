@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="app">
-    <!-- Sidebar / Dock -->
+    <!-- Sidebar -->
     <aside id="sidebar" aria-label="Навигация">
       <div class="brand">📰 Моите новини</div>
       <div class="cats-loading">Зареждам меню...</div>
@@ -21,7 +21,6 @@
           <button id="collapseToggle" class="icon-btn desktop-only" title="Свий/разгърни">⟨⟩</button>
         </div>
 
-        <!-- Top mode switch -->
         <div class="mode-switch" role="tablist" aria-label="Режими">
           <button id="modeNews" class="mode-btn active" role="tab" aria-selected="true" data-mode="news">Новини</button>
           <button id="modeVideos" class="mode-btn" role="tab" aria-selected="false" data-mode="videos">Видеа</button>
@@ -34,7 +33,7 @@
       <div id="status" class="status"></div>
 
       <!-- Филтри -->
-      <section class="filters">
+      <section class="filters" id="filters">
         <div class="time-filters scroller">
           <button class="chip" data-filter="today">Днес</button>
           <button class="chip" data-filter="week">Тази седмица</button>
@@ -49,6 +48,9 @@
         </div>
       </section>
 
+      <!-- Нови филтри за пазари (динамично ще се показват тук) -->
+      <section id="marketFilters" class="market-filters" style="display:none"></section>
+
       <!-- Списък -->
       <div id="list" class="list">
         <div class="placeholder">Използвай менюто, за да заредиш новини, видеа или пазари.</div>
@@ -56,24 +58,11 @@
     </main>
   </div>
 
-  <!-- Reader -->
-  <div id="reader" class="reader" style="display:none" aria-hidden="true">
-    <div class="reader-backdrop"></div>
-    <div class="reader-panel">
-      <div class="reader-bar">
-        <div class="reader-title">Четец</div>
-        <button id="readerClose" class="btn">Затвори</button>
-      </div>
-      <div id="readerContent" class="reader-content"></div>
-    </div>
-  </div>
-
-  <!-- JS (в този ред!) -->
   <script src="utils.js"></script>
   <script src="parser.js"></script>
   <script src="reader.js"></script>
   <script src="videos.js"></script>
-  <script src="markets.js"></script> <!-- новия модул -->
+  <script src="markets.js"></script>
   <script src="main.js"></script>
 </body>
 </html>
