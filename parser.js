@@ -1,7 +1,7 @@
 // ==========================
 // parser.js (финална версия)
 // ==========================
-
+if (typeof SELECTORS === 'undefined') var SELECTORS = 'div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3';
 // Избор на елементи за общите сайтове (Darik, bTV, Dnevnik, OFFNews, Mediapool и др.)
 function selectRawBlocks(doc) {
   return Array.from(doc.querySelectorAll(SELECTORS));
