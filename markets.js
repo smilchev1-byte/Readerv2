@@ -28,7 +28,7 @@ async function loadMarketsSidebar() {
       });
     });
 
-    // По подразбиране — активира Stocks
+    // По подразбиране зарежда Stocks
     const firstBtn = sidebarEl.querySelector('[data-market="stocks"]');
     if (firstBtn) firstBtn.click();
 
@@ -83,11 +83,8 @@ async function fetchSingleMarketData(symbol) {
     // Генерираме вътрешния Yahoo URL
     const yahooURL = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
 
-    // Кодираме два пъти, за да се приеме от Worker-а
-    const safeURL = encodeURIComponent(encodeURIComponent(yahooURL));
-
-    // Пълен работещ линк към твоя Worker
-    const proxURL = `${PROXY}/?url=${safeURL}&nocache=${Date.now()}`;
+    // Само еднократно кодиране (Cloudflare сам декодира)
+    const proxURL = `${PROXY}/?url=${encodeURIComponent(yahooURL)}&nocache=${Date.now()}`;
 
     const res = await fetch(proxURL, { mode: 'cors' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -99,6 +96,7 @@ async function fetchSingleMarketData(symbol) {
       wrapper = JSON.parse(await res.text());
     }
 
+    // Cloudflare може да върне {data:{...}} или директно {...}
     const data = wrapper?.data || wrapper;
     const result = data?.quoteResponse?.result?.[0];
 
