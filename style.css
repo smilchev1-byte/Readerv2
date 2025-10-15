@@ -131,7 +131,8 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   .reader-panel{left:0; top:0; transform:none; width:100vw; height:100vh; border-radius:0}
 }
 
-/* --- ПАЗАРИ --- */
+
+  /* --- ПАЗАРИ --- */
 .market-filters {
   display: flex;
   flex-wrap: wrap;
@@ -144,12 +145,12 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   background: var(--panel);
   padding: 10px 14px;
   border-radius: 12px;
-  flex: 1 1 280px;
-  min-width: 240px;
+  flex: 1 1 320px;
+  min-width: 260px;
 }
 .market-section h4 {
   font-size: 15px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   color: var(--muted);
 }
 .market-section label {
