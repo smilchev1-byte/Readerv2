@@ -4,6 +4,38 @@
 
 let MODE = 'news';
 
+/* --- iPhone bootstrap (трябва да е най-горе) --- */
+(function stabilizeIOS(){
+  const ua = navigator.userAgent || '';
+  const isiOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isiOS) {
+    document.body.classList.add('ios');
+    // спираме „hover logic“: ще управляваме само с бутон/клас
+    document.body.classList.add('sidebar-collapsed');
+
+    // гарантираме, че тап върху sidebar не го „прибира“
+    const sidebar = document.getElementById('sidebar');
+    sidebar?.addEventListener('touchstart', ev => {
+      ev.stopPropagation();
+    }, { passive: true });
+
+    // правим бутона да е винаги видим и работещ
+    const btn = document.getElementById('collapseToggle');
+    if (btn) {
+      btn.classList.remove('desktop-only');
+      btn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        document.body.classList.toggle('sidebar-collapsed');
+      }, { passive:false });
+    }
+
+    // избягваме конфликт с scroll на main
+    const main = document.getElementById('main');
+    main?.addEventListener('touchstart', ()=>{}, { passive:true });
+  }
+})();
+
 // --- Филтри (новини)
 function wireFilters(){
   document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
