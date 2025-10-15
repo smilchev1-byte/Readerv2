@@ -1,94 +1,70 @@
-function extractArticleFromLdJson(html){
-  const scripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
-  const pickDate = o => o?.dateModified || o?.datePublished || null;
+// ============================
+// ✅ reader.js — фиксиран четец (новини + видеа)
+// ============================
 
-  const tryOne = obj => {
-    if (!obj || typeof obj !== 'object') return null;
-    if (obj.articleBody) return { body: obj.articleBody, date: pickDate(obj) };
-    if (Array.isArray(obj)) { for (const it of obj) { const r = tryOne(it); if (r) return r; } }
-    if (obj['@graph']) return tryOne(obj['@graph']);
-    if (obj.mainEntityOfPage) return tryOne(obj.mainEntityOfPage);
-    return null;
-  };
+const reader = $('#reader');
+const readerContent = $('#readerContent');
+$('#readerClose').addEventListener('click', closeReader);
+reader.addEventListener('click', e => { if (e.target.classList.contains('reader-backdrop')) closeReader(); });
 
-  for (const tag of scripts) {
-    try {
-      const jsonText = tag.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
-      const data = JSON.parse(jsonText);
-      const found = tryOne(data);
-      if (found) return found;
-    } catch {}
-  }
-  return null;
+function closeReader() {
+  reader.style.display = 'none';
+  reader.setAttribute('aria-hidden', 'true');
+  readerContent.innerHTML = '';
 }
 
-function splitIntoSentenceParagraphs(text, groupSize = 3){
-  const sentenceRegex = /[^.!?]+[.!?]+["']?\s*/g;
-  const sentences = text.match(sentenceRegex) || [text];
-  const groups = [];
-  for (let i = 0; i < sentences.length; i += groupSize) {
-    const group = sentences.slice(i, i + groupSize).join(' ').trim();
-    if (group) groups.push(group);
-  }
-  return groups;
-}
-
-const reader = $('#reader'), readerContent = $('#readerContent');
-$('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; readerContent.innerHTML=''; });
-reader.addEventListener('click', e=>{ if(e.target.classList.contains('reader-backdrop')){ reader.style.display='none'; readerContent.innerHTML=''; } });
-
-function extractArticleFromMain(doc){
-  const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
-  if (main){ sanitize(main); return main.innerText.trim(); }
-  return '';
-}
-
-async function openReader(url){
-  if (!url) { setStatus('❌ Невалиден URL за статия.'); return; }
-  setStatus('⏳ Зареждам статия…');
-  try{
-    // ✅ Използваме твоя Cloudflare proxy
-    const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}`;
-    const res  = await fetch(prox, { mode:'cors' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+// --- Новини (LD+JSON articleBody) ---
+async function openReader(url) {
+  if (!url) return setStatus('❌ Невалиден URL за статия.');
+  setStatus('⏳ Зареждам статия...');
+  try {
+    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res = await fetch(prox);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const html = await res.text();
-    const doc  = parseHTML(html);
+    const doc = parseHTML(html);
 
-    const fromLd = extractArticleFromLdJson(html);
-    let articleText = fromLd?.body || '';
-    let dateText    = fromLd?.date || '';
-
-    if (!articleText) articleText = extractArticleFromMain(doc);
-
-    if (!dateText) {
-      const t = doc.querySelector('time[datetime], meta[property="article:published_time"]');
-      dateText = t ? (t.getAttribute?.('datetime') || t.content || '') : '';
+    // 1️⃣ Извличане на articleBody от LD+JSON
+    const ldScripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+    let articleText = '', dateText = '';
+    for (let s of ldScripts) {
+      try {
+        const json = JSON.parse(s.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1]);
+        if (Array.isArray(json)) {
+          for (const obj of json) {
+            if (obj.articleBody) { articleText = obj.articleBody; dateText = obj.datePublished || ''; break; }
+          }
+        } else if (json.articleBody) {
+          articleText = json.articleBody; dateText = json.datePublished || '';
+        }
+      } catch {}
+      if (articleText) break;
     }
-    let fDate = '';
-    if (dateText) {
-      const d = new Date(dateText);
-      if (!isNaN(d)) fDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+
+    // 2️⃣ Ако няма LD+JSON, fallback към <article> елемент
+    if (!articleText) {
+      const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
+      if (main) articleText = main.innerText.trim();
     }
 
-    const pic = doc.querySelector('picture.img--title.landscape, article picture, .article picture, figure picture');
-    const imgHTML = pic ? pic.outerHTML : '';
+    if (!articleText) throw new Error('Не е намерено съдържание.');
 
-    if (articleText) {
-      const paras = splitIntoSentenceParagraphs(articleText, 3);
-      readerContent.innerHTML = `${imgHTML}${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}${paras.map((p,i)=>`<p class="${i===0?'lead':''}">${p}</p>`).join('')}`;
-      reader.style.display='block';
-      setStatus('');
-    } else {
-      setStatus('❌ Не успях да извлека съдържанието на статията.');
-    }
-  }catch(e){
-    setStatus('❌ CORS/HTTP грешка: '+e.message);
+    // 3️⃣ Форматиране
+    const grouped = articleText.split(/\n{2,}/).map((p, i) => `<p class="${i===0?'lead':''}">${p.trim()}</p>`).join('');
+    const formattedDate = dateText ? new Date(dateText).toLocaleString('bg-BG', { dateStyle:'medium', timeStyle:'short' }) : '';
+
+    readerContent.innerHTML = `${formattedDate?`<div class="reader-date">🕒 ${formattedDate}</div>`:''}${grouped}`;
+    reader.style.display = 'block';
+    reader.setAttribute('aria-hidden', 'false');
+    setStatus('');
+  } catch (e) {
+    setStatus('❌ Грешка: ' + e.message);
   }
 }
 
-/* YouTube embed */
-function openVideoInReader(videoId, title, publishedISO){
-  const fDate = (()=>{ const d=new Date(publishedISO); return isNaN(d)? '' : d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'}); })();
+// --- Видеа (YouTube embed) ---
+function openVideoInReader(videoId, title, publishedISO) {
+  const fDate = publishedISO ? new Date(publishedISO).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'}) : '';
   readerContent.innerHTML = `
     ${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}
     <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
@@ -96,7 +72,7 @@ function openVideoInReader(videoId, title, publishedISO){
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%"></iframe>
     </div>
-    <p class="lead">${title||''}</p>
-  `;
-  reader.style.display='block';
+    <p class="lead">${title||''}</p>`;
+  reader.style.display = 'block';
+  reader.setAttribute('aria-hidden', 'false');
 }
