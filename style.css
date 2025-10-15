@@ -166,3 +166,31 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
   width: 16px;
   height: 16px;
 }
+
+/* --- iPhone стабилизиране --- */
+@supports (-webkit-touch-callout: none) {
+  /* маркираме тъч режими (iOS) с клас от JS: body.ios */
+  body.ios .app { grid-template-columns: 60px 1fr; }
+  body.ios aside { width: 60px; align-items: center; }
+  body.ios .cat { width: 44px; justify-content: center; }
+  body.ios .cat .label { display: none; }
+  body.ios .brand { display: none; }
+
+  /* спираме hover-разширяването на iPhone */
+  body.ios.sidebar-collapsed aside:hover { width: 60px; }
+  body.ios.sidebar-collapsed aside:hover .cat .label { display: none; }
+
+  /* задължаваме кликовете да минават */
+  aside, aside * { pointer-events: auto; }
+  .top { z-index: 5; }         /* по-нисък от aside */
+  aside { z-index: 10; }       /* над top, за да не „хваща“ топ барът таповете */
+}
+
+/* бутонът за свиване да е видим и на iPhone */
+@supports (-webkit-touch-callout: none) {
+  body.ios .desktop-only { display: inline-block; }
+}
+
+/* дребни обезопасители */
+#sidebar .cat:active { transform: translateY(0); }
+.mode-switch { pointer-events: auto; }
