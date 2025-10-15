@@ -1,98 +1,101 @@
 // ============================
-// ✅ reader.js — работеща логика за articleBody + видеа
+// ✅ parser.js — фиксирано SELECTORS + реални линкове
 // ============================
 
-document.addEventListener('DOMContentLoaded', () => {
-  const reader = document.getElementById('reader');
-  const readerContent = document.getElementById('readerContent');
-  const readerCloseBtn = document.getElementById('readerClose');
+const SELECTORS_SAFE =
+  (typeof window !== 'undefined' && window.SELECTORS) ||
+  'div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3';
 
-  if (!reader || !readerContent) {
-    console.error('❌ reader или readerContent липсва в DOM.');
-    return;
+function selectRawBlocks(doc) {
+  return Array.from(doc.querySelectorAll(SELECTORS_SAFE));
+}
+
+function toCardElement(rawHTML, baseHref) {
+  const fragDoc = parseHTML('<div id="wrap">' + rawHTML + '</div>');
+  const wrap = fragDoc.getElementById('wrap');
+  sanitize(wrap);
+  fixRelativeURLs(wrap, baseHref);
+
+  const img = wrap.querySelector('img');
+  const imgSrc = img?.getAttribute('src') || '';
+
+  const h = wrap.querySelector('h1,h2,h3');
+  const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || wrap.textContent || '(без заглавие)').trim();
+
+  // линк към статията (абсолютен)
+  const rawLink =
+    h?.querySelector('a[href]')?.getAttribute('href') ||
+    wrap.querySelector('a[href]')?.getAttribute('href') || '';
+  const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
+
+  // дата
+  let isoDate = '', formattedDate = '';
+  const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
+  const dateText = t ? (t.getAttribute('datetime') || t.content || '') : '';
+  if (dateText) {
+    const d = new Date(dateText);
+    if (!isNaN(d)) {
+      isoDate = d.toISOString();
+      formattedDate = d.toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' });
+    }
   }
 
-  readerCloseBtn?.addEventListener('click', closeReader);
-  reader.addEventListener('click', e => {
-    if (e.target.classList.contains('reader-backdrop')) closeReader();
+  // източник
+  let source = '';
+  try { source = new URL(baseHref).hostname.replace(/^www\./, ''); } catch {}
+
+  const card = document.createElement('div');
+  card.className = 'card-row';
+  if (isoDate) card.dataset.date = isoDate;
+  if (linkAbs) card.dataset.href = linkAbs;
+
+  card.innerHTML = `
+    <div class="thumb">${imgSrc ? `<img src="${imgSrc}" alt="">` : '<span>no image</span>'}</div>
+    <div class="right-side">
+      <div class="header-row">
+        <h3 class="title">
+          <a href="${linkAbs || '#'}" target="_blank" rel="noopener noreferrer" style="cursor:pointer">${title}</a>
+        </h3>
+        ${formattedDate ? `<div class="meta-date">🕒 ${formattedDate}</div>` : ''}
+      </div>
+      <div class="meta">${source}</div>
+    </div>`;
+
+  // клик → отваря четеца с реалния URL
+  card.querySelector('a').addEventListener('click', e => {
+    e.preventDefault();
+    const href = card.dataset.href || '';
+    if (!href) return setStatus('❌ Липсва линк към статия.');
+    openReader(href);
   });
 
-  function closeReader() {
-    reader.style.display = 'none';
-    reader.setAttribute('aria-hidden', 'true');
-    readerContent.innerHTML = '';
+  return card;
+}
+
+async function importURL(url) {
+  if (!url) return setStatus('Невалиден URL.');
+  setStatus('⏳ Зареждам новини…');
+  try {
+    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res = await fetch(prox, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const html = await res.text();
+    const doc = parseHTML(html);
+    renderCardsFromDoc(doc, url);
+    setStatus('');
+  } catch (e) {
+    setStatus('❌ Грешка: ' + e.message);
   }
+}
 
-  // === Новини: извличане на articleBody директно от HTML ===
-  window.openReader = async function (url) {
-    if (!url) return setStatus('❌ Невалиден URL.');
-    setStatus('⏳ Зареждам статия…');
-
-    try {
-      const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      const res = await fetch(prox);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const html = await res.text();
-
-      // 1️⃣ директно търсим "articleBody":
-      let articleText = '';
-      const match = html.match(/"articleBody"\s*:\s*"([^"]+)"/);
-      if (match) articleText = match[1].replace(/\\n/g, ' ').replace(/\\"/g, '"');
-
-      // 2️⃣ fallback към JSON блокове
-      if (!articleText) {
-        const ldScripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
-        for (let s of ldScripts) {
-          try {
-            const json = JSON.parse(s.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1]);
-            if (Array.isArray(json)) {
-              for (const j of json) if (j.articleBody) { articleText = j.articleBody; break; }
-            } else if (json.articleBody) {
-              articleText = json.articleBody;
-            }
-          } catch {}
-          if (articleText) break;
-        }
-      }
-
-      // 3️⃣ fallback към <article>
-      if (!articleText) {
-        const doc = parseHTML(html);
-        const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
-        if (main) articleText = main.innerText.trim();
-      }
-
-      if (!articleText) throw new Error('Не е намерено съдържание.');
-
-      // 4️⃣ разделяме на параграфи
-      const grouped = articleText
-        .split(/[\r\n]+/)
-        .filter(p => p.trim().length > 2)
-        .map((p, i) => `<p class="${i === 0 ? 'lead' : ''}">${p.trim()}</p>`)
-        .join('');
-
-      readerContent.innerHTML = grouped;
-      reader.style.display = 'block';
-      reader.setAttribute('aria-hidden', 'false');
-      setStatus('');
-    } catch (e) {
-      console.error(e);
-      setStatus('❌ Грешка: ' + e.message);
-    }
-  };
-
-  // === Видеа: YouTube embed ===
-  window.openVideoInReader = function (videoId, title, publishedISO) {
-    const fDate = publishedISO ? new Date(publishedISO).toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-    readerContent.innerHTML = `
-      ${fDate ? `<div class="reader-date">🕒 ${fDate}</div>` : ''}
-      <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
-        <iframe src="https://www.youtube.com/embed/${videoId}" title="${title || 'Video Player'}" frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%"></iframe>
-      </div>
-      <p class="lead">${title || ''}</p>`;
-    reader.style.display = 'block';
-    reader.setAttribute('aria-hidden', 'false');
-  };
-});
+function renderCardsFromDoc(doc, baseHref) {
+  const listEl = $('#list');
+  listEl.innerHTML = '';
+  const raw = selectRawBlocks(doc);
+  if (!raw.length) {
+    listEl.innerHTML = '<div class="placeholder">Няма намерени елементи.</div>';
+    return;
+  }
+  raw.forEach(node => listEl.appendChild(toCardElement(node.outerHTML, baseHref)));
+  populateCategories();
+}
