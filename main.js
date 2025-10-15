@@ -1,9 +1,10 @@
 // ==========================
-// main.js — три режима: Новини / Видеа / Пазари
+// main.js — режими: Новини / Видеа / Пазари
 // ==========================
 
 let MODE = 'news';
 
+// --- Филтри (новини)
 function wireFilters(){
   document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
     document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
@@ -22,6 +23,7 @@ function wireFilters(){
   }
 }
 
+// --- Sidebar loader (новини/видеа)
 async function loadSidebar(){
   const sidebarEl = document.getElementById('sidebar');
   try{
@@ -45,7 +47,7 @@ async function loadSidebar(){
       span.className='label';
       span.textContent = labelText;
       el.append(img, span);
-      el.title = labelText || el.getAttribute('data-url') || el.getAttribute('data-channel') || '';
+      el.title = labelText;
     });
 
     sidebarEl.addEventListener('click', e=>{
@@ -65,6 +67,7 @@ async function loadSidebar(){
   }
 }
 
+// --- Превключвател на режими
 function wireModeSwitch(){
   const btnNews = document.getElementById('modeNews');
   const btnVideos = document.getElementById('modeVideos');
@@ -83,7 +86,8 @@ function wireModeSwitch(){
     if (MODE==='news') return;
     MODE='news';
     deactivateAll();
-    btnNews.classList.add('active'); btnNews.setAttribute('aria-selected','true');
+    btnNews.classList.add('active');
+    btnNews.setAttribute('aria-selected','true');
     document.querySelector('.headline').textContent = 'Последни новини';
     document.querySelector('.filters').style.display = 'flex';
     document.getElementById('list').innerHTML = '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
@@ -94,7 +98,8 @@ function wireModeSwitch(){
     if (MODE==='videos') return;
     MODE='videos';
     deactivateAll();
-    btnVideos.classList.add('active'); btnVideos.setAttribute('aria-selected','true');
+    btnVideos.classList.add('active');
+    btnVideos.setAttribute('aria-selected','true');
     document.querySelector('.headline').textContent = 'Последни видеа';
     document.querySelector('.filters').style.display = 'none';
     document.getElementById('list').innerHTML = '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
@@ -102,18 +107,20 @@ function wireModeSwitch(){
   });
 
   btnMarkets.addEventListener('click', ()=>{
-  if (MODE==='markets') return;
-  MODE='markets';
-  deactivateAll();
-  btnMarkets.classList.add('active');
-  btnMarkets.setAttribute('aria-selected','true');
-  document.querySelector('.headline').textContent = 'Пазарни индекси и активи';
-  document.querySelector('.filters').style.display = 'none';
-  document.getElementById('list').innerHTML = '<div class="placeholder">Зареждам пазари...</div>';
-  loadMarketsSidebar(); // 🔹 ново!
-});
+    if (MODE==='markets') return;
+    MODE='markets';
+    deactivateAll();
+    btnMarkets.classList.add('active');
+    btnMarkets.setAttribute('aria-selected','true');
+    document.querySelector('.headline').textContent = 'Пазарни индекси и активи';
+    document.querySelector('.filters').style.display = 'none';
+    document.getElementById('list').innerHTML = '<div class="placeholder">Зареждам пазари...</div>';
+    if (typeof loadMarketsSidebar === 'function') loadMarketsSidebar();
+    else setStatus('⚠ markets.js не е зареден.');
+  });
 }
 
+// --- Скрол ефект за headline
 let lastScrollTop = 0;
 function wireScrollHide(){
   const mainEl = document.getElementById('main');
@@ -125,6 +132,7 @@ function wireScrollHide(){
   });
 }
 
+// --- Collapse sidebar
 const collapseBtn = document.getElementById('collapseToggle');
 if (collapseBtn) {
   collapseBtn.addEventListener('click', ()=>{
@@ -132,6 +140,7 @@ if (collapseBtn) {
   });
 }
 
+// --- Init
 wireFilters();
 wireModeSwitch();
 wireScrollHide();
