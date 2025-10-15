@@ -1,16 +1,12 @@
 // ============================
-// ✅ parser.js — с изображения, филтри и безопасен reader hook
+// ✅ parser.js — с активен линк, изображения и пълен reader hook
 // ============================
 
-// Безопасен селектор
 const $ = s => document.querySelector(s);
-
-// Помощни функции
 function parseHTML(html){ return new DOMParser().parseFromString(html,'text/html'); }
 function absURL(base, rel){ try{ return new URL(rel, base).href }catch{ return rel } }
 function setStatus(msg){ const el = $('#status'); if(el) el.textContent = msg || ''; }
 
-// Извличане на HTML чрез proxy (работи и в Safari)
 async function fetchHTML(url){
   const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}&t=${Date.now()}`;
   const res = await fetch(proxy, { cache:"no-store", mode:"cors" });
@@ -18,19 +14,25 @@ async function fetchHTML(url){
   return await res.text();
 }
 
-// Извличане на статии (<a class*="gtag-feed-statia">)
+// ===== Извличане на статии =====
 function extractFeedAnchors(doc, baseHref){
   const anchors = Array.from(doc.querySelectorAll('a[class*="gtag-feed-statia"]'));
   return anchors.map(a=>{
-    const container = a.closest("article, li, div") || a.parentElement;
+    const container = a.closest("article, div, li") || a.parentElement;
     const imgEl = container?.querySelector("img");
     const timeEl = container?.querySelector("time");
     const catEl = container?.querySelector(".category, .tag, .label, .news-category");
 
+    // 🖼 Опит за всички възможни атрибути за изображение
+    let imgSrc = imgEl?.getAttribute("src") ||
+                 imgEl?.getAttribute("data-src") ||
+                 imgEl?.getAttribute("data-srcset") ||
+                 imgEl?.getAttribute("srcset") || "";
+
     return {
       href: absURL(baseHref, a.getAttribute("href") || ""),
       title: (a.textContent || a.getAttribute("title") || "").trim(),
-      img: imgEl ? absURL(baseHref, imgEl.getAttribute("src") || "") : "",
+      img: imgSrc ? absURL(baseHref, imgSrc.split(" ")[0]) : "",
       date: timeEl?.getAttribute("datetime") || timeEl?.textContent?.trim() || "",
       category: catEl?.textContent?.trim() || "",
       source: (()=>{ try{ return new URL(baseHref).hostname.replace(/^www\./,''); }catch{return '';} })()
@@ -38,7 +40,7 @@ function extractFeedAnchors(doc, baseHref){
   }).filter(x=>x.href && x.title);
 }
 
-// Основна функция — зарежда новини по URL
+// ===== Импорт от sidebar =====
 async function importURL(url){
   if(!url){ setStatus('❌ Невалиден URL.'); return; }
   setStatus('⏳ Зареждам новини…');
@@ -66,13 +68,12 @@ async function importURL(url){
     setStatus('');
   }catch(e){
     console.error(e);
-    setStatus('❌ Грешка при зареждане: '+e.message);
-    const listEl = $('#list');
-    if(listEl) listEl.innerHTML = `<div class="placeholder">❌ ${e.message}</div>`;
+    setStatus('❌ Грешка: '+e.message);
+    listEl.innerHTML = `<div class="placeholder">❌ ${e.message}</div>`;
   }
 }
 
-// Създава карта за статия
+// ===== Карта с линк =====
 function toCardElement(item,i){
   const card = document.createElement('div');
   card.className = 'card-row';
@@ -81,6 +82,7 @@ function toCardElement(item,i){
   if(item.category) card.dataset.category = item.category;
 
   const formattedDate = item.date ? new Date(item.date).toLocaleDateString('bg-BG',{dateStyle:'medium'}) : '';
+  const host = item.source || '';
 
   card.innerHTML = `
     <div class="thumb">
@@ -88,10 +90,10 @@ function toCardElement(item,i){
     </div>
     <div class="right-side">
       <div class="header-row">
-        <h3 class="title"><a href="#">${item.title}</a></h3>
+        <h3 class="title"><a href="${item.href}" target="_blank" rel="noopener noreferrer">${item.title}</a></h3>
         ${formattedDate ? `<div class="meta-date">🕒 ${formattedDate}</div>` : ''}
       </div>
-      <div class="meta">${item.source}${item.category ? ` • ${item.category}` : ''}</div>
+      <div class="meta">${host}${item.category ? ` • ${item.category}` : ''}</div>
     </div>`;
 
   const link = card.querySelector('a');
@@ -107,7 +109,7 @@ function toCardElement(item,i){
   return card;
 }
 
-// === Филтри ===
+// ===== Филтри по категория =====
 const catSel = $('#categorySelect');
 function populateCategories(){
   if(!catSel) return;
@@ -128,7 +130,7 @@ if(catSel){
   });
 }
 
-// === Датови филтри ===
+// ===== Филтри по дата =====
 document.querySelectorAll('.chip').forEach(b=>{
   b.addEventListener('click',()=>{
     document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
