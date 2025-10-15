@@ -1,9 +1,8 @@
 // =======================
-// parser.js (оригинална логика + твоя Cloudflare proxy)
+// parser.js (финален работещ вариант)
 // =======================
 
 function selectRawBlocks(doc){
-  // ВАЖНО: SELECTORS идва от utils.js (не го дефинираме тук)
   return Array.from(doc.querySelectorAll(SELECTORS));
 }
 
@@ -69,7 +68,7 @@ async function importURL(url){
   if(!url){ setStatus('Невалиден URL.'); return; }
   setStatus('⏳ Зареждам новини…');
   try{
-    // ✅ използваме твоя Cloudflare Worker proxy
+    // ✅ стабилен Cloudflare proxy
     const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}`;
     const res  = await fetch(prox, {mode:'cors'});
     if(!res.ok) throw new Error('HTTP '+res.status);
@@ -83,7 +82,8 @@ async function importURL(url){
 }
 
 function renderCardsFromDoc(doc, baseHref){
-  const listEl = $('#list'); listEl.innerHTML = '';
+  const listEl = $('#list');
+  listEl.innerHTML = '';
   const raw = selectRawBlocks(doc);
   if(!raw.length){
     listEl.innerHTML = '<div class="placeholder">Няма намерени елементи.</div>';
