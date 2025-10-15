@@ -1,75 +1,83 @@
 // ============================
-// ✅ reader.js — финална версия (reader винаги се отваря)
+// ✅ videos.js — стабилно зареждане на YouTube видеа
 // ============================
 
-document.addEventListener('DOMContentLoaded', () => {
-  const reader = document.getElementById('reader');
-  const readerContent = document.getElementById('readerContent');
-  const readerCloseBtn = document.getElementById('readerClose');
+// YouTube RSS канал: https://www.youtube.com/feeds/videos.xml?channel_id=CHANNEL_ID
+async function fetchChannelRSS(channelId) {
+  try {
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
+    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
 
-  readerCloseBtn?.addEventListener('click', closeReader);
-  reader.addEventListener('click', e => {
-    if (e.target.classList.contains('reader-backdrop')) closeReader();
-  });
+    const res = await fetch(prox, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
 
-  function closeReader() {
-    reader.style.display = 'none';
-    reader.setAttribute('aria-hidden', 'true');
-    readerContent.innerHTML = '';
+    const xml = await res.text();
+    const parser = new DOMParser();
+    return parser.parseFromString(xml, 'application/xml');
+  } catch (err) {
+    throw new Error('RSS грешка: ' + err.message);
   }
+}
 
-  // ГЛОБАЛНО достъпна функция за новини
-  window.openReader = async function (url) {
-    if (!url) return setStatus('❌ Невалиден URL.');
-    setStatus('⏳ Зареждам статия…');
+// Създаване на карта за видео
+function buildVideoCard(entry) {
+  const title = entry.querySelector('title')?.textContent?.trim() || '(Видео)';
+  const vid = entry.querySelector('yt\\:videoId, videoId')?.textContent || '';
+  const pub = entry.querySelector('published')?.textContent || '';
+  const iso = pub ? new Date(pub).toISOString() : '';
+  const thumb = vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : '';
 
-    try {
-      const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      const res = await fetch(prox);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const html = await res.text();
+  const card = document.createElement('div');
+  card.className = 'card-row video';
+  if (iso) card.dataset.date = iso;
+  if (vid) card.dataset.video = vid;
 
-      // търсим "articleBody"
-      let articleText = '';
-      const match = html.match(/"articleBody"\s*:\s*"([^"]+)"/);
-      if (match) articleText = match[1].replace(/\\n/g, ' ').replace(/\\"/g, '"');
-
-      if (!articleText) {
-        const doc = parseHTML(html);
-        const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
-        if (main) articleText = main.innerText.trim();
-      }
-
-      if (!articleText) throw new Error('Не е намерено съдържание.');
-
-      const grouped = articleText
-        .split(/[\r\n]+/)
-        .filter(p => p.trim().length > 2)
-        .map((p, i) => `<p class="${i === 0 ? 'lead' : ''}">${p.trim()}</p>`)
-        .join('');
-
-      readerContent.innerHTML = grouped;
-      reader.style.display = 'block';
-      reader.setAttribute('aria-hidden', 'false');
-      setStatus('');
-    } catch (e) {
-      console.error(e);
-      setStatus('❌ Грешка: ' + e.message);
-    }
-  };
-
-  // ГЛОБАЛНО достъпна функция за видеа
-  window.openVideoInReader = function (videoId, title, publishedISO) {
-    const fDate = publishedISO ? new Date(publishedISO).toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-    readerContent.innerHTML = `
-      ${fDate ? `<div class="reader-date">🕒 ${fDate}</div>` : ''}
-      <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
-        <iframe src="https://www.youtube.com/embed/${videoId}" title="${title||'Video Player'}" frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%"></iframe>
+  card.innerHTML = `
+    <div class="thumb">
+      ${thumb ? `<img src="${thumb}" alt="thumb">` : '<span>no image</span>'}
+    </div>
+    <div class="right-side">
+      <div class="header-row">
+        <h3 class="title">
+          <a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener noreferrer">${title}</a>
+        </h3>
+        ${iso ? `<div class="meta-date">🕒 ${new Date(iso).toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' })}</div>` : ''}
       </div>
-      <p class="lead">${title||''}</p>`;
-    reader.style.display = 'block';
-    reader.setAttribute('aria-hidden', 'false');
+      <div class="meta">YouTube</div>
+    </div>`;
+
+  // Отваряне в четеца (и за Safari)
+  const open = () => {
+    if (vid) openVideoInReader(vid, title, iso);
+    else setStatus('❌ Липсва videoId.');
   };
-});
+  card.querySelector('a').addEventListener('click', e => { e.preventDefault(); open(); });
+  card.addEventListener('click', open);
+
+  return card;
+}
+
+// Зареждане на видеа от канал
+async function loadVideosFromChannel(channelId) {
+  const listEl = document.getElementById('list');
+  setStatus('⏳ Зареждам видеа...');
+  listEl.innerHTML = '<div class="placeholder">Зареждам...</div>';
+
+  try {
+    const xml = await fetchChannelRSS(channelId);
+    const entries = Array.from(xml.querySelectorAll('entry'));
+    if (!entries.length) {
+      listEl.innerHTML = '<div class="placeholder">❌ Няма видеа за показване.</div>';
+      setStatus('');
+      return;
+    }
+
+    listEl.innerHTML = '';
+    entries.forEach(entry => listEl.appendChild(buildVideoCard(entry)));
+    setStatus('');
+  } catch (err) {
+    console.error(err);
+    listEl.innerHTML = `<div class="placeholder">❌ Грешка: ${err.message}</div>`;
+    setStatus('❌ Грешка при зареждане: ' + err.message);
+  }
+}
