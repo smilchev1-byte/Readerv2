@@ -1,169 +1,138 @@
 // ==========================
-// markets.js — стабилна версия с Cloudflare proxy
+// markets.js — Пазари (по символ наведнъж, dropdown избор)
 // ==========================
 
+// Източници по категории
 const MARKET_CATEGORIES = {
-  stocks: [
-    { symbol: 'AAPL', name: 'Apple' },
-    { symbol: 'MSFT', name: 'Microsoft' },
-    { symbol: 'NVDA', name: 'Nvidia' },
-    { symbol: 'AMZN', name: 'Amazon' },
-    { symbol: 'GOOG', name: 'Alphabet' },
-  ],
-  etfs: [
-    { symbol: 'SPY', name: 'S&P 500' },
-    { symbol: 'QQQ', name: 'NASDAQ 100' },
-    { symbol: 'VTI', name: 'Total US Market' },
-    { symbol: 'VGK', name: 'Europe' },
-    { symbol: 'EEM', name: 'Emerging Markets' },
-  ],
-  crypto: [
-    { symbol: 'BTC-USD', name: 'Bitcoin' },
-    { symbol: 'ETH-USD', name: 'Ethereum' },
-    { symbol: 'SOL-USD', name: 'Solana' },
-    { symbol: 'ADA-USD', name: 'Cardano' },
-    { symbol: 'XRP-USD', name: 'XRP' },
-  ]
+  stocks: ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG'],
+  etfs: ['SPY', 'QQQ', 'VTI', 'VGK', 'EEM'],
+  crypto: ['BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'XRP-USD']
 };
 
-// --- Създава филтрите според избраната категория
-function renderMarketFilters(categoryKey){
+function renderMarketFilters(categoryKey) {
   const container = document.getElementById('marketFilters');
   container.innerHTML = '';
 
   const items = MARKET_CATEGORIES[categoryKey];
-  if (!items){
-    container.innerHTML = '<div class="placeholder">Избери категория от менюто.</div>';
+  if (!items) {
+    container.innerHTML = '<div class="placeholder">Избери категория.</div>';
     return;
   }
 
-  const section = document.createElement('div');
-  section.className = 'market-section';
+  const label = document.createElement('label');
+  label.textContent = 'Избери актив: ';
+  label.style.display = 'block';
+  label.style.marginBottom = '8px';
 
-  const title = document.createElement('h4');
-  title.textContent = categoryKey === 'stocks' ? '📈 Акции' :
-                      categoryKey === 'etfs' ? '💹 ETF-и' :
-                      '💰 Криптовалути';
-  section.appendChild(title);
+  const select = document.createElement('select');
+  select.id = 'symbolSelect';
+  select.style.padding = '8px';
+  select.style.borderRadius = '8px';
+  select.style.background = '#1e1e1e';
+  select.style.color = '#fff';
+  select.style.border = '1px solid #333';
+  select.style.fontSize = '16px';
 
-  items.forEach(({symbol, name})=>{
-    const label = document.createElement('label');
-    label.innerHTML = `<input type="checkbox" checked data-symbol="${symbol}"> ${name} (${symbol})`;
-    section.appendChild(label);
+  items.forEach(sym => {
+    const opt = document.createElement('option');
+    opt.value = sym;
+    opt.textContent = sym;
+    select.appendChild(opt);
   });
 
-  container.appendChild(section);
+  container.appendChild(label);
+  container.appendChild(select);
   container.style.display = 'block';
 
-  const checkboxes = container.querySelectorAll('input[type=checkbox]');
-  function updateSelection(){
-    const active = Array.from(checkboxes)
-      .filter(cb=>cb.checked)
-      .map(cb=>cb.dataset.symbol);
-    fetchMarketData(active);
-  }
-  checkboxes.forEach(cb=>cb.addEventListener('change', updateSelection));
-  updateSelection();
+  select.addEventListener('change', () => {
+    fetchSingleMarketData(select.value);
+  });
+
+  // зарежда първия по подразбиране
+  fetchSingleMarketData(select.value);
 }
 
-// --- Извличане на пазарни данни
-async function fetchMarketData(symbols){
+async function fetchSingleMarketData(symbol) {
+  setStatus(`⏳ Зареждам данни за ${symbol}...`);
   const listEl = document.getElementById('list');
-  if(!symbols.length){
-    listEl.innerHTML = '<div class="placeholder">Избери поне един актив.</div>';
-    return;
-  }
+  listEl.innerHTML = '';
 
-  setStatus('⏳ Зареждам пазарни данни...');
-  try{
-    const yahooURL = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
-    const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(yahooURL)}`;
-    
-    const res = await fetch(prox);
-    if(!res.ok) throw new Error('HTTP '+res.status);
+  try {
+    const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`;
+
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
 
     let data;
     try {
       data = await res.json();
     } catch {
-      const txt = await res.text();
-      data = JSON.parse(txt);
+      data = JSON.parse(await res.text());
     }
 
-    // 💡 Универсално извличане
-    const result =
-      data?.quoteResponse?.result ||
-      data?.result ||
-      (Array.isArray(data) ? data : []);
+    const result = data?.quoteResponse?.result?.[0];
+    if (!result) throw new Error('Няма данни за ' + symbol);
 
-    if (!result || !result.length)
-      throw new Error('Празен резултат от API.');
-
-    renderMarketCards(result);
+    renderMarketCard(result);
     setStatus('');
-  }catch(err){
-    setStatus('❌ Грешка: '+err.message);
-    console.error('Market fetch error', err);
+  } catch (err) {
+    setStatus('❌ Грешка: ' + err.message);
+    console.error(err);
   }
 }
 
-// --- Визуализация на пазарните карти
-function renderMarketCards(data){
+function renderMarketCard(item) {
   const list = document.getElementById('list');
   list.innerHTML = '';
 
-  if(!data || !data.length){
-    list.innerHTML = '<div class="placeholder">Няма пазарни данни.</div>';
-    return;
-  }
+  const symbol = item.symbol || '-';
+  const name = item.shortName || item.longName || symbol;
+  const price = item.regularMarketPrice?.toFixed?.(2) || '-';
+  const change = item.regularMarketChange ?? 0;
+  const percent = item.regularMarketChangePercent ?? 0;
+  const up = change >= 0;
+  const time = item.regularMarketTime
+    ? new Date(item.regularMarketTime * 1000).toLocaleString('bg-BG', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : '';
 
-  data.forEach(item=>{
-    const symbol = item.symbol || '-';
-    const name = item.shortName || item.longName || symbol;
-    const price = item.regularMarketPrice?.toFixed?.(2) || '-';
-    const change = item.regularMarketChange ?? 0;
-    const percent = item.regularMarketChangePercent ?? 0;
-    const up = change >= 0;
-    const time = item.regularMarketTime
-      ? new Date(item.regularMarketTime * 1000).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})
-      : '';
-
-    const div = document.createElement('div');
-    div.className = 'card-row';
-    div.innerHTML = `
-      <div class="thumb"><span>${symbol}</span></div>
-      <div class="right-side">
-        <div class="header-row">
-          <h3 class="title">${name}</h3>
-          <div class="meta-date">${time}</div>
-        </div>
-        <div class="meta">
-          💰 <strong>${price}</strong>
-          <span style="color:${up?'#4bff6b':'#ff4b4b'}">
-            ${up?'▲':'▼'} ${percent.toFixed(2)}%
-          </span>
-        </div>
-      </div>`;
-    list.appendChild(div);
-  });
+  const div = document.createElement('div');
+  div.className = 'card-row';
+  div.innerHTML = `
+    <div class="thumb"><span>${symbol}</span></div>
+    <div class="right-side">
+      <div class="header-row">
+        <h3 class="title">${name}</h3>
+        <div class="meta-date">${time}</div>
+      </div>
+      <div class="meta">
+        💰 <strong>${price}</strong>
+        <span style="color:${up ? '#4bff6b' : '#ff4b4b'}">
+          ${up ? '▲' : '▼'} ${percent.toFixed(2)}%
+        </span>
+      </div>
+    </div>`;
+  list.appendChild(div);
 }
 
-// --- Зареждане на sidebar (Stocks / ETFs / Crypto)
-async function loadMarketsSidebar(){
+async function loadMarketsSidebar() {
   const sidebarEl = document.getElementById('sidebar');
-  try{
-    const html = await fetch('./markets.html').then(r=>r.text());
+  try {
+    const html = await fetch('./markets.html').then(r => r.text());
     sidebarEl.innerHTML = html;
 
-    sidebarEl.querySelectorAll('[data-market]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        sidebarEl.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
+    sidebarEl.querySelectorAll('[data-market]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sidebarEl.querySelectorAll('.cat').forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
         renderMarketFilters(btn.dataset.market);
       });
     });
-  }catch(err){
-    sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя пазари<br>${err.message}</div>`;
+  } catch (err) {
+    sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя меню<br>${err.message}</div>`;
   }
 }
 
