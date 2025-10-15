@@ -1,30 +1,35 @@
-// Режим: news | videos
+// ==========================
+// main.js — три режима: Новини / Видеа / Пазари
+// ==========================
+
 let MODE = 'news';
 
-// === Филтри ===
-function wireFilters() {
-  const timeSelect = document.getElementById('timeSelect');
-  const catSelect = document.getElementById('categorySelect');
+// --- Филтри (работят само при новини)
+function wireFilters(){
+  document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    applyDateFilter(b.dataset.filter);
+  }));
 
-  if (timeSelect) {
-    timeSelect.addEventListener('change', () => applyDateFilter(timeSelect.value));
-  }
-
-  if (catSelect) {
-    catSelect.addEventListener('change', () => {
-      const sel = catSelect.value;
-      document.querySelectorAll('.card-row').forEach(c => {
-        c.style.display = (sel === 'all' || c.dataset.category === sel) ? '' : 'none';
+  const catSel = document.getElementById('categorySelect');
+  if (catSel) {
+    catSel.addEventListener('change', ()=>{
+      const sel = catSel.value;
+      document.querySelectorAll('.card-row').forEach(c=>{
+        c.style.display = (sel==='all' || c.dataset.category===sel) ? '' : 'none';
       });
     });
   }
 }
 
-// === Sidebar ===
+// --- Sidebar (новини / видеа)
 async function loadSidebar(){
   const sidebarEl = document.getElementById('sidebar');
   try{
-    const file = MODE === 'news' ? './sidebar.html' : './channels.html';
+    const file = MODE === 'news' ? './sidebar.html' : (MODE === 'videos' ? './channels.html' : '');
+    if (!file){ sidebarEl.innerHTML = ''; return; }
+
     const html = await fetch(file).then(r=>r.text());
     sidebarEl.innerHTML = html;
 
@@ -34,17 +39,19 @@ async function loadSidebar(){
       el.innerHTML = '';
       const iconUrl = el.getAttribute('data-icon') || DEFAULT_ICON;
       const img = document.createElement('img');
-      img.className='fav'; img.alt=''; img.src = iconUrl;
+      img.className='fav';
+      img.alt='';
+      img.referrerPolicy='no-referrer';
+      img.src = iconUrl;
       const span = document.createElement('span');
-      span.className='label'; span.textContent = labelText;
+      span.className='label';
+      span.textContent = labelText;
       el.append(img, span);
-      el.title = labelText;
+      el.title = labelText || el.getAttribute('data-url') || el.getAttribute('data-channel') || '';
     });
 
-    // клик поведение
     sidebarEl.addEventListener('click', e=>{
-      e.stopPropagation();
-      const btnNews  = e.target.closest('[data-url]');
+      const btnNews = e.target.closest('[data-url]');
       const btnVideo = e.target.closest('[data-channel]');
       sidebarEl.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
 
@@ -55,36 +62,71 @@ async function loadSidebar(){
         btnVideo.classList.add('active');
         loadVideosFromChannel(btnVideo.dataset.channel);
       }
-    }, false);
-
+    });
   }catch(err){
     sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя меню<br>${err.message}</div>`;
   }
 }
 
-// === Превключване на режими ===
-
+// --- Превключвател за режими
 function wireModeSwitch(){
-  const btnNews   = document.getElementById('modeNews');
+  const btnNews = document.getElementById('modeNews');
   const btnVideos = document.getElementById('modeVideos');
   const btnMarkets = document.getElementById('modeMarkets');
 
-  btnNews.addEventListener('click', ()=>{ ... }); // без промяна
-  btnVideos.addEventListener('click', ()=>{ ... }); // без промяна
+  const allBtns = [btnNews, btnVideos, btnMarkets];
+  const deactivateAll = ()=>{
+    allBtns.forEach(b=>{
+      if(!b) return;
+      b.classList.remove('active');
+      b.setAttribute('aria-selected','false');
+    });
+  };
 
+  // Новини
+  btnNews.addEventListener('click', ()=>{
+    if (MODE==='news') return;
+    MODE='news';
+    deactivateAll();
+    btnNews.classList.add('active');
+    btnNews.setAttribute('aria-selected','true');
+    document.querySelector('.headline').textContent = 'Последни новини';
+    document.querySelector('.filters').style.display = 'flex';
+    document.getElementById('list').innerHTML = '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
+    loadSidebar();
+  });
+
+  // Видеа
+  btnVideos.addEventListener('click', ()=>{
+    if (MODE==='videos') return;
+    MODE='videos';
+    deactivateAll();
+    btnVideos.classList.add('active');
+    btnVideos.setAttribute('aria-selected','true');
+    document.querySelector('.headline').textContent = 'Последни видеа';
+    document.querySelector('.filters').style.display = 'none';
+    document.getElementById('list').innerHTML = '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
+    loadSidebar();
+  });
+
+  // Пазари
   btnMarkets.addEventListener('click', ()=>{
     if (MODE==='markets') return;
     MODE='markets';
+    deactivateAll();
     btnMarkets.classList.add('active');
     btnMarkets.setAttribute('aria-selected','true');
-    [btnNews,btnVideos].forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
     document.querySelector('.headline').textContent = 'Пазарни индекси и активи';
+    document.querySelector('.filters').style.display = 'none';
     document.getElementById('list').innerHTML = '<div class="placeholder">Зареждам пазари...</div>';
+    // зареждаме пазари
     fetchMarketData();
+    // скриваме sidebar-а — няма нужда тук
+    document.getElementById('sidebar').innerHTML = '<div class="cats-loading">Пазарна информация...</div>';
   });
 }
 
-// === Скрол hide ===
+// --- Скрол ефект за headline
 let lastScrollTop = 0;
 function wireScrollHide(){
   const mainEl = document.getElementById('main');
@@ -96,27 +138,15 @@ function wireScrollHide(){
   });
 }
 
-// === Sidebar toggle ===
+// --- Collapse sidebar (desktop)
 const collapseBtn = document.getElementById('collapseToggle');
 if (collapseBtn) {
-  collapseBtn.textContent = '☰';
-  collapseBtn.addEventListener('click', e=>{
-    e.stopPropagation();
-    document.body.classList.toggle('sidebar-open');
-  }, false);
+  collapseBtn.addEventListener('click', ()=>{
+    document.body.classList.toggle('sidebar-collapsed');
+  });
 }
 
-// === Tap-outside ===
-document.addEventListener('click', e=>{
-  if (window.innerWidth > 768) return;
-  if (!document.body.classList.contains('sidebar-open')) return;
-  const sidebar = document.getElementById('sidebar');
-  const toggle  = document.getElementById('collapseToggle');
-  if (sidebar.contains(e.target) || toggle.contains(e.target)) return;
-  document.body.classList.remove('sidebar-open');
-}, false);
-
-// === Init ===
+// --- Init
 wireFilters();
 wireModeSwitch();
 wireScrollHide();
