@@ -65,5 +65,20 @@
   <script src="markets.js"></script>
   <script src="videoReader.js"></script>
   <script src="main.js"></script>
+
+  <!-- index.html — добави това точно ПРЕДИ </body> (статичен видео reader за Safari) -->
+<div id="videoReader" class="reader" style="display:none" aria-hidden="true">
+  <div class="reader-backdrop"></div>
+  <div class="reader-panel">
+    <div class="reader-bar">
+      <div class="reader-title">🎥 Видео</div>
+      <button id="videoReaderClose" class="btn">Затвори</button>
+    </div>
+    <div id="videoReaderContent" class="reader-content"></div>
+  </div>
+</div>
+
+
+  
 </body>
 </html>
