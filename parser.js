@@ -1,13 +1,20 @@
 // ============================
-// ✅ parser.js — фиксирано SELECTORS + реални линкове
+// ✅ parser.js — финална стабилна версия (Cloudflare proxy + реални линкове)
 // ============================
 
-const SELECTORS_SAFE =
-  (typeof window !== 'undefined' && window.SELECTORS) ||
-  'div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3';
+// По-гъвкави селектори за различни сайтове
+const SELECTORS = [
+  'article',                     // OFFNews, Dnevnik, Mediapool
+  '.article-item',               // Kapital, Dnevnik
+  '.post',                       // bTV
+  '.news-item',                  // OFFNews
+  '.story',                      // BBC
+  '.c-article',                  // Mediapool
+  '.l-article'                   // други
+].join(',');
 
 function selectRawBlocks(doc) {
-  return Array.from(doc.querySelectorAll(SELECTORS_SAFE));
+  return Array.from(doc.querySelectorAll(SELECTORS));
 }
 
 function toCardElement(rawHTML, baseHref) {
@@ -16,16 +23,19 @@ function toCardElement(rawHTML, baseHref) {
   sanitize(wrap);
   fixRelativeURLs(wrap, baseHref);
 
+  // изображение
   const img = wrap.querySelector('img');
   const imgSrc = img?.getAttribute('src') || '';
 
-  const h = wrap.querySelector('h1,h2,h3');
-  const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || wrap.textContent || '(без заглавие)').trim();
+  // заглавие
+  const h = wrap.querySelector('h1,h2,h3,h4');
+  const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || '(без заглавие)').trim();
 
-  // линк към статията (абсолютен)
+  // линк (реален)
   const rawLink =
     h?.querySelector('a[href]')?.getAttribute('href') ||
-    wrap.querySelector('a[href]')?.getAttribute('href') || '';
+    wrap.querySelector('a[href]')?.getAttribute('href') ||
+    '';
   const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
 
   // дата
@@ -40,28 +50,34 @@ function toCardElement(rawHTML, baseHref) {
     }
   }
 
-  // източник
+  // категория и източник
+  const breadcrumb = wrap.querySelector('li.breadcrumb-item, .category, .news-category');
+  const category = breadcrumb ? breadcrumb.textContent.trim() : '';
   let source = '';
   try { source = new URL(baseHref).hostname.replace(/^www\./, ''); } catch {}
 
+  // карта
   const card = document.createElement('div');
   card.className = 'card-row';
   if (isoDate) card.dataset.date = isoDate;
   if (linkAbs) card.dataset.href = linkAbs;
+  if (category) card.dataset.category = category;
 
   card.innerHTML = `
     <div class="thumb">${imgSrc ? `<img src="${imgSrc}" alt="">` : '<span>no image</span>'}</div>
     <div class="right-side">
       <div class="header-row">
         <h3 class="title">
-          <a href="${linkAbs || '#'}" target="_blank" rel="noopener noreferrer" style="cursor:pointer">${title}</a>
+          <a href="${linkAbs || '#'}" target="_blank" rel="noopener noreferrer" style="cursor:pointer">
+            ${title}
+          </a>
         </h3>
         ${formattedDate ? `<div class="meta-date">🕒 ${formattedDate}</div>` : ''}
       </div>
-      <div class="meta">${source}</div>
+      <div class="meta">${source}${category ? ` • ${category}` : ''}</div>
     </div>`;
 
-  // клик → отваря четеца с реалния URL
+  // при клик → четец
   card.querySelector('a').addEventListener('click', e => {
     e.preventDefault();
     const href = card.dataset.href || '';
@@ -72,11 +88,12 @@ function toCardElement(rawHTML, baseHref) {
   return card;
 }
 
+// === Импорт на URL (Cloudflare proxy) ===
 async function importURL(url) {
   if (!url) return setStatus('Невалиден URL.');
   setStatus('⏳ Зареждам новини…');
   try {
-    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}`;
     const res = await fetch(prox, { mode: 'cors' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const html = await res.text();
@@ -84,10 +101,11 @@ async function importURL(url) {
     renderCardsFromDoc(doc, url);
     setStatus('');
   } catch (e) {
-    setStatus('❌ Грешка: ' + e.message);
+    setStatus('❌ CORS/HTTP грешка: ' + e.message);
   }
 }
 
+// === Рендиране на картите ===
 function renderCardsFromDoc(doc, baseHref) {
   const listEl = $('#list');
   listEl.innerHTML = '';
