@@ -7,9 +7,7 @@ function wireFilters() {
   const catSelect = document.getElementById('categorySelect');
 
   if (timeSelect) {
-    timeSelect.addEventListener('change', () => {
-      applyDateFilter(timeSelect.value);
-    });
+    timeSelect.addEventListener('change', () => applyDateFilter(timeSelect.value));
   }
 
   if (catSelect) {
@@ -30,7 +28,7 @@ async function loadSidebar(){
     const html = await fetch(file).then(r=>r.text());
     sidebarEl.innerHTML = html;
 
-    // Добавяне на иконки
+    // Иконки
     sidebarEl.querySelectorAll('[data-url],[data-channel]').forEach(el=>{
       el.classList.add('cat');
       const labelText = (el.textContent||'').trim();
@@ -41,33 +39,31 @@ async function loadSidebar(){
       const span = document.createElement('span');
       span.className='label'; span.textContent = labelText;
       el.append(img, span);
-      el.title = labelText || el.getAttribute('data-url') || el.getAttribute('data-channel') || '';
+      el.title = labelText;
     });
 
-    // === Клик поведение според режима ===
-    sidebarEl.addEventListener('click', (e)=>{
-      e.stopPropagation(); // спираме tap-outside да го засече
+    // Клик поведение
+    sidebarEl.addEventListener('click', e=>{
+      e.stopPropagation();
 
       const btnNews  = e.target.closest('[data-url]');
       const btnVideo = e.target.closest('[data-channel]');
+      sidebarEl.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
 
       if (MODE === 'news' && btnNews){
-        sidebarEl.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
         btnNews.classList.add('active');
         importURL(btnNews.dataset.url);
       } else if (MODE === 'videos' && btnVideo){
-        sidebarEl.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
         btnVideo.classList.add('active');
         loadVideosFromChannel(btnVideo.dataset.channel);
       }
 
-      // затваряме менюто след кратко време (след като зареди)
+      // затваряне след клик само на мобилен
       if (window.innerWidth <= 768) {
-        setTimeout(()=> document.body.classList.remove('sidebar-open'), 300);
+        setTimeout(()=> document.body.classList.remove('sidebar-open'), 400);
       }
     }, false);
 
-    // iOS може да използва touchstart вместо click
     sidebarEl.addEventListener('touchstart', e => e.stopPropagation(), {passive:true});
 
   }catch(err){
@@ -75,7 +71,7 @@ async function loadSidebar(){
   }
 }
 
-// === Превключване на режимите (Новини / Видеа) ===
+// === Превключване на режимите ===
 function wireModeSwitch(){
   const btnNews   = document.getElementById('modeNews');
   const btnVideos = document.getElementById('modeVideos');
@@ -86,11 +82,8 @@ function wireModeSwitch(){
     btnNews.classList.add('active');
     btnVideos.classList.remove('active');
     document.querySelector('.headline').textContent = 'Последни новини';
-
-    // показваме филтрите за новини
     document.getElementById('filters-news').style.display = 'flex';
     document.getElementById('filters-videos').style.display = 'none';
-
     document.getElementById('list').innerHTML =
       '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
     loadSidebar();
@@ -102,18 +95,15 @@ function wireModeSwitch(){
     btnVideos.classList.add('active');
     btnNews.classList.remove('active');
     document.querySelector('.headline').textContent = 'Последни видеа';
-
-    // показваме филтри за видеа (ако има)
     document.getElementById('filters-news').style.display = 'none';
     document.getElementById('filters-videos').style.display = 'flex';
-
     document.getElementById('list').innerHTML =
       '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
     loadSidebar();
   });
 }
 
-// === Скрол hide за headline ===
+// === Скрол hide ===
 let lastScrollTop = 0;
 function wireScrollHide(){
   const mainEl = document.getElementById('main');
@@ -125,42 +115,35 @@ function wireScrollHide(){
   });
 }
 
-// === Sidebar toggle (десктоп/мобилен) ===
+// === Sidebar toggle ===
 const collapseBtn = document.getElementById('collapseToggle');
 if (collapseBtn) {
   collapseBtn.textContent = '☰';
-  collapseBtn.addEventListener('click', (e)=>{
-    e.stopPropagation(); // предотвратява затваряне от document handler
+  collapseBtn.addEventListener('click', e=>{
+    e.stopPropagation();
     if (window.innerWidth <= 768) {
-      document.body.classList.toggle('sidebar-open');
+      document.body.classList.toggle('sidebar-open'); // само този клас на мобилен
     } else {
-      document.body.classList.toggle('sidebar-collapsed');
+      document.body.classList.toggle('sidebar-collapsed'); // само на десктоп
     }
   }, false);
 }
 
-// === Tap-outside за мобилен (затваря при клик извън менюто) ===
-document.addEventListener('click', (e)=>{
+// === Tap-outside ===
+document.addEventListener('click', e=>{
   if (window.innerWidth > 768) return;
   if (!document.body.classList.contains('sidebar-open')) return;
 
   const path = e.composedPath ? e.composedPath() : [];
   const sidebar = document.getElementById('sidebar');
   const toggle  = document.getElementById('collapseToggle');
-
   const clickedInsideSidebar = sidebar && path.includes(sidebar);
-  const clickedToggle        = toggle && (toggle === e.target || toggle.contains(e.target));
+  const clickedToggle = toggle && (toggle === e.target || toggle.contains(e.target));
 
   if (!clickedInsideSidebar && !clickedToggle) {
     document.body.classList.remove('sidebar-open');
   }
 }, false);
-
-// === При мобилен по подразбиране sidebar е скрит ===
-if (window.innerWidth <= 768) {
-  document.body.classList.remove('sidebar-open');
-  document.body.classList.add('sidebar-collapsed');
-}
 
 // === Init ===
 wireFilters();
