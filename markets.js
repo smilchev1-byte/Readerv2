@@ -1,11 +1,13 @@
 // ==========================
-// markets.js — динамичен sidebar с филтри
+// markets.js — динамичен sidebar + Yahoo Finance данни
 // ==========================
 
-let MARKET_SYMBOLS = [];
-
 async function fetchMarketData(symbols){
-  if(!symbols || !symbols.length) symbols = ['AAPL','MSFT','BTC-USD'];
+  if(!symbols || !symbols.length){
+    $('#list').innerHTML = '<div class="placeholder">Избери поне един актив.</div>';
+    return;
+  }
+
   setStatus('⏳ Зареждам пазарни данни...');
   try{
     const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
@@ -16,7 +18,7 @@ async function fetchMarketData(symbols){
     renderMarketCards(json.quoteResponse.result);
     setStatus('');
   }catch(e){
-    setStatus('❌ Грешка: '+e.message);
+    setStatus('❌ Грешка при зареждане: '+e.message);
   }
 }
 
@@ -52,20 +54,24 @@ function renderMarketCards(data){
   });
 }
 
-// === Зареждане на sidebar
+// зареждане на sidebar
 async function loadMarketsSidebar(){
   const sidebarEl = document.getElementById('sidebar');
-  const html = await fetch('./markets.html').then(r=>r.text());
-  sidebarEl.innerHTML = html;
+  try{
+    const html = await fetch('./markets.html').then(r=>r.text());
+    sidebarEl.innerHTML = html;
 
-  const checkboxes = sidebarEl.querySelectorAll('input[type=checkbox]');
-  function updateSelection(){
-    const active = Array.from(checkboxes).filter(cb=>cb.checked).map(cb=>cb.dataset.symbol);
-    MARKET_SYMBOLS = active;
-    fetchMarketData(active);
+    const checkboxes = sidebarEl.querySelectorAll('input[type=checkbox]');
+    function updateSelection(){
+      const active = Array.from(checkboxes).filter(cb=>cb.checked).map(cb=>cb.dataset.symbol);
+      fetchMarketData(active);
+    }
+    checkboxes.forEach(cb=>cb.addEventListener('change', updateSelection));
+    updateSelection(); // първоначално зареждане
+  }catch(err){
+    sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя пазари<br>${err.message}</div>`;
   }
-  checkboxes.forEach(cb=>cb.addEventListener('change', updateSelection));
-  updateSelection();
 }
 
+// достъпно глобално
 window.loadMarketsSidebar = loadMarketsSidebar;
