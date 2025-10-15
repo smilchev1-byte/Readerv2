@@ -60,8 +60,8 @@ async function importURL(url){
   if(!url){ setStatus('Невалиден URL.'); return; }
   setStatus('⏳ Зареждам новини…');
   try{
-    // ✅ по-надежден proxy за новинарски сайтове (работи и в Safari)
-    const prox = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`;
+    // ✅ Твоят собствен Cloudflare proxy (работи навсякъде)
+    const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}`;
     const res  = await fetch(prox, {mode:'cors'});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const html = await res.text();
