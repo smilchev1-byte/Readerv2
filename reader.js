@@ -47,8 +47,8 @@ async function openReader(url){
   if (!url) { setStatus('❌ Невалиден URL за статия.'); return; }
   setStatus('⏳ Зареждам статия…');
   try{
-    // ✅ стабилен proxy за Safari
-    const prox = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`;
+    // ✅ Използваме твоя Cloudflare proxy
+    const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}`;
     const res  = await fetch(prox, { mode:'cors' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
