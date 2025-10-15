@@ -102,17 +102,16 @@ function wireModeSwitch(){
   });
 
   btnMarkets.addEventListener('click', ()=>{
-    if (MODE==='markets') return;
-    MODE='markets';
-    deactivateAll();
-    btnMarkets.classList.add('active'); btnMarkets.setAttribute('aria-selected','true');
-    document.querySelector('.headline').textContent = 'Пазарни индекси и активи';
-    document.querySelector('.filters').style.display = 'none';
-    document.getElementById('list').innerHTML = '<div class="placeholder">Зареждам пазари...</div>';
-    if (typeof fetchMarketData === 'function') fetchMarketData();
-    else setStatus('⚠ markets.js не е зареден.');
-    document.getElementById('sidebar').innerHTML = '<div class="cats-loading">Пазарна информация...</div>';
-  });
+  if (MODE==='markets') return;
+  MODE='markets';
+  deactivateAll();
+  btnMarkets.classList.add('active');
+  btnMarkets.setAttribute('aria-selected','true');
+  document.querySelector('.headline').textContent = 'Пазарни индекси и активи';
+  document.querySelector('.filters').style.display = 'none';
+  document.getElementById('list').innerHTML = '<div class="placeholder">Зареждам пазари...</div>';
+  loadMarketsSidebar(); // 🔹 ново!
+});
 }
 
 let lastScrollTop = 0;
