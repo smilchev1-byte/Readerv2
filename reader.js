@@ -34,8 +34,8 @@ function splitIntoSentenceParagraphs(text, groupSize = 3){
 }
 
 const reader = $('#reader'), readerContent = $('#readerContent');
-$('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; });
-reader.addEventListener('click', e=>{ if(e.target.classList.contains('reader-backdrop')){ reader.style.display='none'; reader.setAttribute('aria-hidden','true'); readerContent.innerHTML=''; } });
+$('#readerClose').addEventListener('click', ()=>{ reader.style.display='none'; readerContent.innerHTML=''; });
+reader.addEventListener('click', e=>{ if(e.target.classList.contains('reader-backdrop')){ reader.style.display='none'; readerContent.innerHTML=''; } });
 
 function extractArticleFromMain(doc){
   const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
@@ -47,7 +47,8 @@ async function openReader(url){
   if (!url) { setStatus('❌ Невалиден URL за статия.'); return; }
   setStatus('⏳ Зареждам статия…');
   try{
-    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    // ✅ Нов proxy (работи на Safari)
+    const prox = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
     const res  = await fetch(prox, { mode:'cors' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
@@ -76,17 +77,16 @@ async function openReader(url){
       const paras = splitIntoSentenceParagraphs(articleText, 3);
       readerContent.innerHTML = `${imgHTML}${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}${paras.map((p,i)=>`<p class="${i===0?'lead':''}">${p}</p>`).join('')}`;
       reader.style.display='block';
-      reader.setAttribute('aria-hidden','false');
       setStatus('');
     } else {
       setStatus('❌ Не успях да извлека съдържанието на статията.');
     }
   }catch(e){
-    setStatus('❌ Грешка при зареждане: '+e.message);
+    setStatus('❌ CORS/HTTP грешка: '+e.message);
   }
 }
 
-/* YouTube embed в четеца */
+/* YouTube embed */
 function openVideoInReader(videoId, title, publishedISO){
   const fDate = (()=>{ const d=new Date(publishedISO); return isNaN(d)? '' : d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'}); })();
   readerContent.innerHTML = `
@@ -99,5 +99,4 @@ function openVideoInReader(videoId, title, publishedISO){
     <p class="lead">${title||''}</p>
   `;
   reader.style.display='block';
-  reader.setAttribute('aria-hidden','false');
 }
