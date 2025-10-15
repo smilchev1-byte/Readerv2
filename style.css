@@ -223,24 +223,29 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
     overflow: 
 
 
-/* ---- FINAL CLICK FIX for iPhone Safari ---- */
 @media (max-width:768px){
-
-  /* Sidebar над всичко */
   aside {
     position: fixed !important;
-    top: 0;
-    left: -240px;
-    width: 220px;
-    height: 100vh;
+    top: 0; left: -240px;
+    width: 220px; height: 100vh;
     background: var(--panel);
     border-right: 1px solid var(--border);
-    z-index: 10000 !important; /* 🧩 по-висок от overlay */
-    transition: left 0.3s ease;
+    z-index: 10000 !important;
+    transition: left .3s ease;
   }
-  body.sidebar-open aside {
-    left: 0;
+  body.sidebar-open aside { left: 0; }
+  body::after {
+    content:"";
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.45);
+    opacity:0; visibility:hidden;
+    transition:opacity .3s ease;
+    z-index:9999;
   }
+  body.sidebar-open::after {
+    opacity:1; visibility:visible;
+  }
+}
 
   /* Overlay фон – зад sidebar, без да прихваща кликове */
   body::after {
