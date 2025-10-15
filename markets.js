@@ -1,7 +1,8 @@
 // ==========================
-// markets.js — sidebar с категории + динамични филтри
+// markets.js — секция „Пазари“ с категории, филтри и Yahoo Finance API
 // ==========================
 
+// Примерни активи по категории
 const MARKET_CATEGORIES = {
   stocks: [
     { symbol: 'AAPL', name: 'Apple' },
@@ -26,13 +27,16 @@ const MARKET_CATEGORIES = {
   ]
 };
 
-// --- създаване на филтрите според категорията
+// --- Създава филтрите според избраната категория
 function renderMarketFilters(categoryKey){
   const container = document.getElementById('marketFilters');
   container.innerHTML = '';
 
   const items = MARKET_CATEGORIES[categoryKey];
-  if (!items){ container.innerHTML = '<div class="placeholder">Избери категория от менюто.</div>'; return; }
+  if (!items){
+    container.innerHTML = '<div class="placeholder">Избери категория от менюто.</div>';
+    return;
+  }
 
   const section = document.createElement('div');
   section.className = 'market-section';
@@ -54,17 +58,20 @@ function renderMarketFilters(categoryKey){
 
   const checkboxes = container.querySelectorAll('input[type=checkbox]');
   function updateSelection(){
-    const active = Array.from(checkboxes).filter(cb=>cb.checked).map(cb=>cb.dataset.symbol);
+    const active = Array.from(checkboxes)
+      .filter(cb=>cb.checked)
+      .map(cb=>cb.dataset.symbol);
     fetchMarketData(active);
   }
   checkboxes.forEach(cb=>cb.addEventListener('change', updateSelection));
   updateSelection();
 }
 
-// --- зареждане на пазарни данни от Yahoo Finance
+// --- Зареждане на пазарни данни от Yahoo Finance
 async function fetchMarketData(symbols){
+  const listEl = document.getElementById('list');
   if(!symbols.length){
-    document.getElementById('list').innerHTML = '<div class="placeholder">Избери поне един актив.</div>';
+    listEl.innerHTML = '<div class="placeholder">Избери поне един актив.</div>';
     return;
   }
 
@@ -72,50 +79,69 @@ async function fetchMarketData(symbols){
   try{
     const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
     const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res = await fetch(prox);
+    const res = await fetch(prox, { mode: 'cors' });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
-    renderMarketCards(data.quoteResponse.result);
+
+    // 💡 Универсално извличане на резултати
+    const result =
+      data?.quoteResponse?.result ||
+      data?.result ||
+      (Array.isArray(data) ? data : []);
+
+    if (!result || !result.length)
+      throw new Error('Празен резултат от API.');
+
+    renderMarketCards(result);
     setStatus('');
   }catch(err){
     setStatus('❌ Грешка: '+err.message);
+    console.error('Market fetch error', err);
   }
 }
 
-// --- визуализация на карти
+// --- Визуализация на пазарните карти
 function renderMarketCards(data){
   const list = document.getElementById('list');
   list.innerHTML = '';
+
   if(!data || !data.length){
     list.innerHTML = '<div class="placeholder">Няма пазарни данни.</div>';
     return;
   }
 
   data.forEach(item=>{
-    const price = item.regularMarketPrice?.toFixed(2) || '-';
-    const change = item.regularMarketChange?.toFixed(2) || 0;
-    const percent = item.regularMarketChangePercent?.toFixed(2) || 0;
+    const symbol = item.symbol || '-';
+    const name = item.shortName || item.longName || symbol;
+    const price = item.regularMarketPrice?.toFixed?.(2) || '-';
+    const change = item.regularMarketChange ?? 0;
+    const percent = item.regularMarketChangePercent ?? 0;
     const up = change >= 0;
+    const time = item.regularMarketTime
+      ? new Date(item.regularMarketTime * 1000).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})
+      : '';
 
     const div = document.createElement('div');
     div.className = 'card-row';
     div.innerHTML = `
-      <div class="thumb"><span>${item.symbol}</span></div>
+      <div class="thumb"><span>${symbol}</span></div>
       <div class="right-side">
         <div class="header-row">
-          <h3 class="title">${item.shortName || item.symbol}</h3>
-          <div class="meta-date">${new Date(item.regularMarketTime*1000).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})}</div>
+          <h3 class="title">${name}</h3>
+          <div class="meta-date">${time}</div>
         </div>
         <div class="meta">
           💰 <strong>${price}</strong>
-          <span style="color:${up?'#4bff6b':'#ff4b4b'}">${up?'▲':'▼'} ${percent}%</span>
+          <span style="color:${up?'#4bff6b':'#ff4b4b'}">
+            ${up?'▲':'▼'} ${percent.toFixed(2)}%
+          </span>
         </div>
       </div>`;
     list.appendChild(div);
   });
 }
 
-// --- зареждане на sidebar
+// --- Зареждане на sidebar (Stocks / ETFs / Crypto)
 async function loadMarketsSidebar(){
   const sidebarEl = document.getElementById('sidebar');
   try{
@@ -134,4 +160,5 @@ async function loadMarketsSidebar(){
   }
 }
 
+// --- Експортираме функцията за main.js
 window.loadMarketsSidebar = loadMarketsSidebar;
