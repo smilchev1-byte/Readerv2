@@ -1,140 +1,94 @@
-// ===========================
-// reader.js (финална версия)
-// ===========================
+// =======================
+// parser.js (оригинална логика + твоя Cloudflare proxy)
+// =======================
 
-function extractArticleFromLdJson(html){
-  const scripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+function selectRawBlocks(doc){
+  // ВАЖНО: SELECTORS идва от utils.js (не го дефинираме тук)
+  return Array.from(doc.querySelectorAll(SELECTORS));
+}
 
-  // вътрешна функция за намиране на articleBody
-  const tryFind = obj => {
-    if (!obj || typeof obj !== 'object') return null;
+function toCardElement(rawHTML, baseHref){
+  const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
+  const wrap = fragDoc.getElementById('wrap');
+  sanitize(wrap);
+  fixRelativeURLs(wrap, baseHref);
 
-    if (obj['@type'] === 'NewsArticle' && obj.articleBody) {
-      return {
-        body: obj.articleBody,
-        date: obj.dateModified || obj.datePublished || '',
-        image: obj.image?.url || '',
-        headline: obj.headline || '',
-        author: obj.author?.name || '',
-      };
+  const img = wrap.querySelector('img');
+  const imgSrc = img?.getAttribute('src') || '';
+
+  const h = wrap.querySelector('h1,h2,h3');
+  const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || wrap.textContent || '(без заглавие)').trim();
+
+  const rawLink = (h?.querySelector('a[href]')?.getAttribute('href')) || wrap.querySelector('a[href]')?.getAttribute('href') || '';
+  const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
+
+  let isoDate = '', formattedDate = '';
+  const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
+  const dateText = t ? (t.getAttribute('datetime') || t.content || '') : '';
+  if (dateText) {
+    const d = new Date(dateText);
+    if (!isNaN(d)) {
+      isoDate = d.toISOString();
+      formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
     }
-    if (Array.isArray(obj)) {
-      for (const it of obj) {
-        const r = tryFind(it);
-        if (r) return r;
-      }
-    }
-    if (obj['@graph']) return tryFind(obj['@graph']);
-    return null;
-  };
-
-  for (const tag of scripts) {
-    try {
-      const jsonText = tag.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1];
-      const data = JSON.parse(jsonText);
-      const found = tryFind(data);
-      if (found) return found;
-    } catch {}
   }
-  return null;
+
+  const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
+  const category = breadcrumb ? breadcrumb.textContent.trim() : '';
+
+  let source = ''; 
+  try { source = new URL(baseHref).hostname.replace(/^www\./,''); } catch {}
+
+  const card = document.createElement('div');
+  card.className = 'card-row';
+  if (isoDate) card.dataset.date = isoDate;
+  if (category) card.dataset.category = category;
+  if (linkAbs) card.dataset.href = linkAbs;
+
+  card.innerHTML = `
+    <div class="thumb">${imgSrc?`<img src="${imgSrc}" alt="">`:'<span>no image</span>'}</div>
+    <div class="right-side">
+      <div class="header-row">
+        <h3 class="title"><a href="#">${title}</a></h3>
+        ${formattedDate?`<div class="meta-date">🕒 ${formattedDate}</div>`:''}
+      </div>
+      <div class="meta">${source}${category?` • ${category}`:''}</div>
+    </div>`;
+
+  card.querySelector('a').addEventListener('click', e=>{
+    e.preventDefault();
+    const href = card.dataset.href || '';
+    if (!href) { setStatus('❌ Липсва линк към статия.'); return; }
+    openReader(href);
+  });
+
+  return card;
 }
 
-function splitIntoSentenceParagraphs(text, groupSize = 3){
-  const sentenceRegex = /[^.!?]+[.!?]+["']?\s*/g;
-  const sentences = text.match(sentenceRegex) || [text];
-  const groups = [];
-  for (let i = 0; i < sentences.length; i += groupSize) {
-    const group = sentences.slice(i, i + groupSize).join(' ').trim();
-    if (group) groups.push(group);
-  }
-  return groups;
-}
-
-const reader = $('#reader');
-const readerContent = $('#readerContent');
-
-$('#readerClose').addEventListener('click', ()=>{
-  reader.style.display='none';
-  reader.setAttribute('aria-hidden','true');
-  readerContent.innerHTML='';
-});
-
-reader.addEventListener('click', e=>{
-  if(e.target.classList.contains('reader-backdrop')){
-    reader.style.display='none';
-    reader.setAttribute('aria-hidden','true');
-    readerContent.innerHTML='';
-  }
-});
-
-function extractArticleFromMain(doc){
-  const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
-  if (main){ sanitize(main); return main.innerText.trim(); }
-  return '';
-}
-
-async function openReader(url){
-  if (!url) { setStatus('❌ Невалиден URL за статия.'); return; }
-  setStatus('⏳ Зареждам статия…');
+async function importURL(url){
+  if(!url){ setStatus('Невалиден URL.'); return; }
+  setStatus('⏳ Зареждам новини…');
   try{
-    // ✅ използваме твоя Cloudflare proxy
+    // ✅ използваме твоя Cloudflare Worker proxy
     const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}`;
-    const res  = await fetch(prox, { mode:'cors' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res  = await fetch(prox, {mode:'cors'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
     const html = await res.text();
     const doc  = parseHTML(html);
-
-    // първо пробваме JSON-LD
-    const fromLd = extractArticleFromLdJson(html);
-    let articleText = fromLd?.body || '';
-    let dateText    = fromLd?.date || '';
-    let imageUrl    = fromLd?.image || '';
-    let headline    = fromLd?.headline || '';
-
-    // fallback – ако няма JSON-LD, пробваме от <article>
-    if (!articleText) articleText = extractArticleFromMain(doc);
-    if (!dateText) {
-      const t = doc.querySelector('time[datetime], meta[property="article:published_time"]');
-      dateText = t ? (t.getAttribute?.('datetime') || t.content || '') : '';
-    }
-
-    let fDate = '';
-    if (dateText) {
-      const d = new Date(dateText);
-      if (!isNaN(d)) fDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
-    }
-
-    if (articleText) {
-      const paras = splitIntoSentenceParagraphs(articleText, 3);
-      readerContent.innerHTML = `
-        ${imageUrl ? `<picture><img src="${imageUrl}" alt=""></picture>` : ''}
-        ${fDate ? `<div class="reader-date">🕒 ${fDate}</div>` : ''}
-        ${headline ? `<p class="lead">${headline}</p>` : ''}
-        ${paras.map((p,i)=>`<p>${p}</p>`).join('')}
-      `;
-      reader.style.display='block';
-      reader.setAttribute('aria-hidden','false');
-      setStatus('');
-    } else {
-      setStatus('❌ Не успях да извлека съдържанието на статията.');
-    }
+    renderCardsFromDoc(doc, url);
+    setStatus('');
   }catch(e){
     setStatus('❌ CORS/HTTP грешка: '+e.message);
   }
 }
 
-/* YouTube embed в четеца */
-function openVideoInReader(videoId, title, publishedISO){
-  const fDate = (()=>{ const d=new Date(publishedISO); return isNaN(d)? '' : d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'}); })();
-  readerContent.innerHTML = `
-    ${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}
-    <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
-      <iframe src="https://www.youtube.com/embed/${videoId}" title="${title||'Video Player'}" frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%"></iframe>
-    </div>
-    <p class="lead">${title||''}</p>
-  `;
-  reader.style.display='block';
-  reader.setAttribute('aria-hidden','false');
+function renderCardsFromDoc(doc, baseHref){
+  const listEl = $('#list'); listEl.innerHTML = '';
+  const raw = selectRawBlocks(doc);
+  if(!raw.length){
+    listEl.innerHTML = '<div class="placeholder">Няма намерени елементи.</div>';
+    return;
+  }
+  raw.forEach(node => listEl.appendChild(toCardElement(node.outerHTML, baseHref)));
+  populateCategories();
 }
