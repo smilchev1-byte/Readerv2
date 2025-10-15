@@ -1,7 +1,8 @@
 // Константи
 const DEFAULT_ICON = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f4f0.svg'; // 📰
-const SELECTORS = 'div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3';
-
+// добавяме резервни селектори за сайтове като Capital, Dnevnik, Mediapool
+const SELECTORS =
+  'div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3, .article-item, article.article-preview, .article, .post, .story';
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 
