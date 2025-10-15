@@ -2,17 +2,22 @@
 // reader.js — стабилен четец (новини + видеа)
 // ============================
 
-const reader = $('#reader');
-const readerContent = $('#readerContent');
-$('#readerClose').addEventListener('click', closeReader);
-reader.addEventListener('click', e => {
-  if (e.target.classList.contains('reader-backdrop')) closeReader();
+// Изчакваме DOM, за да сме сигурни, че елементите са налични
+document.addEventListener('DOMContentLoaded', () => {
+  window.reader = $('#reader');
+  window.readerContent = $('#readerContent');
+
+  $('#readerClose')?.addEventListener('click', closeReader);
+  reader?.addEventListener('click', e => {
+    if (e.target.classList.contains('reader-backdrop')) closeReader();
+  });
 });
 
 function closeReader() {
+  if (!reader) return;
   reader.style.display = 'none';
   reader.setAttribute('aria-hidden', 'true');
-  readerContent.innerHTML = '';
+  if (readerContent) readerContent.innerHTML = '';
 }
 
 // --- Новини (LD+JSON articleBody) ---
@@ -62,21 +67,28 @@ async function openReader(url) {
       ? new Date(dateText).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})
       : '';
 
-    readerContent.innerHTML = `${formattedDate?`<div class="reader-date">🕒 ${formattedDate}</div>`:''}${grouped}`;
+    // ✅ Проверка дали readerContent е наличен
+    const rc = document.querySelector('#readerContent');
+    if (!rc) throw new Error('readerContent не е намерен в DOM.');
+
+    rc.innerHTML = `${formattedDate?`<div class="reader-date">🕒 ${formattedDate}</div>`:''}${grouped}`;
     reader.style.display = 'block';
     reader.setAttribute('aria-hidden','false');
     setStatus('');
   } catch (err) {
+    console.error(err);
     setStatus('❌ ' + err.message);
   }
 }
 
 // --- YouTube embed ---
 function openVideoInReader(videoId, title, publishedISO) {
+  const rc = document.querySelector('#readerContent');
   const fDate = publishedISO
     ? new Date(publishedISO).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})
     : '';
-  readerContent.innerHTML = `
+  if (!rc) return alert('readerContent липсва!');
+  rc.innerHTML = `
     ${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}
     <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
       <iframe src="https://www.youtube.com/embed/${videoId}" 
