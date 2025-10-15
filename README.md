@@ -10,27 +10,29 @@ export default {
       return new Response("Missing ?url=", { status: 400 });
     }
 
-    // Обработка на OPTIONS (CORS preflight)
+    // handle preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET,HEAD,POST,OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
+          "Access-Control-Allow-Headers": "*",
         },
       });
     }
 
     try {
-      const response = await fetch(target, { redirect: "follow" });
-      const text = await response.text();
+      const resp = await fetch(target, { redirect: "follow" });
+      const body = await resp.text();
 
-      return new Response(text, {
+      return new Response(body, {
+        status: 200,
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET,HEAD,POST,OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-          "Content-Type": response.headers.get("content-type") || "text/html; charset=utf-8",
+          "Access-Control-Allow-Headers": "*",
+          "Vary": "Origin",
+          "Content-Type": resp.headers.get("content-type") || "text/html; charset=utf-8",
         },
       });
     } catch (err) {
@@ -38,6 +40,8 @@ export default {
         status: 500,
         headers: {
           "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "*",
+          "Vary": "Origin",
           "Content-Type": "text/plain; charset=utf-8",
         },
       });
