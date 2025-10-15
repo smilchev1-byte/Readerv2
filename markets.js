@@ -1,39 +1,52 @@
 // ==========================
-// markets.js — Пазари (по символ наведнъж, dropdown избор)
+// markets.js — Пазари с dropdown избор по символ
 // ==========================
 
-// Източници по категории
+// Налични категории
 const MARKET_CATEGORIES = {
   stocks: ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG'],
   etfs: ['SPY', 'QQQ', 'VTI', 'VGK', 'EEM'],
   crypto: ['BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'XRP-USD']
 };
 
-function renderMarketFilters(categoryKey) {
+// Зарежда sidebar за пазари
+async function loadMarketsSidebar(){
+  const sidebarEl = document.getElementById('sidebar');
+  try{
+    const html = await fetch('./markets.html').then(r=>r.text());
+    sidebarEl.innerHTML = html;
+
+    sidebarEl.querySelectorAll('[data-market]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        sidebarEl.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
+        btn.classList.add('active');
+        renderMarketDropdown(btn.dataset.market);
+      });
+    });
+  }catch(err){
+    sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя меню<br>${err.message}</div>`;
+  }
+}
+window.loadMarketsSidebar = loadMarketsSidebar;
+
+// Рендерира dropdown филтър за избраната категория
+function renderMarketDropdown(categoryKey){
   const container = document.getElementById('marketFilters');
+  const listEl = document.getElementById('list');
   container.innerHTML = '';
+  listEl.innerHTML = '<div class="placeholder">Избери актив от списъка.</div>';
 
   const items = MARKET_CATEGORIES[categoryKey];
-  if (!items) {
-    container.innerHTML = '<div class="placeholder">Избери категория.</div>';
-    return;
-  }
+  if(!items){ container.innerHTML = '<div class="placeholder">Няма налични активи.</div>'; return; }
 
   const label = document.createElement('label');
-  label.textContent = 'Избери актив: ';
-  label.style.display = 'block';
-  label.style.marginBottom = '8px';
+  label.textContent = 'Избери актив:';
+  label.className = 'market-label';
 
   const select = document.createElement('select');
   select.id = 'symbolSelect';
-  select.style.padding = '8px';
-  select.style.borderRadius = '8px';
-  select.style.background = '#1e1e1e';
-  select.style.color = '#fff';
-  select.style.border = '1px solid #333';
-  select.style.fontSize = '16px';
-
-  items.forEach(sym => {
+  select.className = 'market-dropdown';
+  items.forEach(sym=>{
     const opt = document.createElement('option');
     opt.value = sym;
     opt.textContent = sym;
@@ -42,61 +55,53 @@ function renderMarketFilters(categoryKey) {
 
   container.appendChild(label);
   container.appendChild(select);
-  container.style.display = 'block';
 
-  select.addEventListener('change', () => {
+  // При промяна
+  select.addEventListener('change', ()=>{
     fetchSingleMarketData(select.value);
   });
 
-  // зарежда първия по подразбиране
+  // По подразбиране първия
   fetchSingleMarketData(select.value);
 }
 
-async function fetchSingleMarketData(symbol) {
+// Изтегля данни за един символ от Yahoo
+async function fetchSingleMarketData(symbol){
   setStatus(`⏳ Зареждам данни за ${symbol}...`);
   const listEl = document.getElementById('list');
   listEl.innerHTML = '';
 
-  try {
+  try{
     const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`;
+    const proxUrl  = `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`;
+    const res = await fetch(proxUrl);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    let data = await res.json();
+    const item = data?.quoteResponse?.result?.[0];
+    if(!item) throw new Error('Няма резултат от Yahoo');
 
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-
-    let data;
-    try {
-      data = await res.json();
-    } catch {
-      data = JSON.parse(await res.text());
-    }
-
-    const result = data?.quoteResponse?.result?.[0];
-    if (!result) throw new Error('Няма данни за ' + symbol);
-
-    renderMarketCard(result);
+    renderMarketCard(item);
     setStatus('');
-  } catch (err) {
-    setStatus('❌ Грешка: ' + err.message);
-    console.error(err);
+  }catch(e){
+    console.error(e);
+    setStatus('❌ Грешка: '+e.message);
+    listEl.innerHTML = '<div class="placeholder">Няма налични данни.</div>';
   }
 }
 
-function renderMarketCard(item) {
+// Визуализира картата за избрания актив
+function renderMarketCard(item){
   const list = document.getElementById('list');
   list.innerHTML = '';
 
-  const symbol = item.symbol || '-';
-  const name = item.shortName || item.longName || symbol;
-  const price = item.regularMarketPrice?.toFixed?.(2) || '-';
-  const change = item.regularMarketChange ?? 0;
+  const symbol  = item.symbol || '-';
+  const name    = item.shortName || item.longName || symbol;
+  const price   = item.regularMarketPrice?.toFixed?.(2) || '-';
+  const change  = item.regularMarketChange ?? 0;
   const percent = item.regularMarketChangePercent ?? 0;
-  const up = change >= 0;
-  const time = item.regularMarketTime
-    ? new Date(item.regularMarketTime * 1000).toLocaleString('bg-BG', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      })
+  const up      = change >= 0;
+  const time    = item.regularMarketTime
+    ? new Date(item.regularMarketTime*1000).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})
     : '';
 
   const div = document.createElement('div');
@@ -117,23 +122,3 @@ function renderMarketCard(item) {
     </div>`;
   list.appendChild(div);
 }
-
-async function loadMarketsSidebar() {
-  const sidebarEl = document.getElementById('sidebar');
-  try {
-    const html = await fetch('./markets.html').then(r => r.text());
-    sidebarEl.innerHTML = html;
-
-    sidebarEl.querySelectorAll('[data-market]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sidebarEl.querySelectorAll('.cat').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        renderMarketFilters(btn.dataset.market);
-      });
-    });
-  } catch (err) {
-    sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя меню<br>${err.message}</div>`;
-  }
-}
-
-window.loadMarketsSidebar = loadMarketsSidebar;
