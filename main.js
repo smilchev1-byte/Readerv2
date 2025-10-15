@@ -89,7 +89,8 @@ function wireModeSwitch(){
     btnNews.classList.add('active');
     btnNews.setAttribute('aria-selected','true');
     document.querySelector('.headline').textContent = 'Последни новини';
-    document.querySelector('.filters').style.display = 'flex';
+    document.getElementById('filters').style.display = 'flex';
+    document.getElementById('marketFilters').style.display = 'none';
     document.getElementById('list').innerHTML = '<div class="placeholder">Използвай менюто, за да заредиш новини.</div>';
     loadSidebar();
   });
@@ -101,7 +102,8 @@ function wireModeSwitch(){
     btnVideos.classList.add('active');
     btnVideos.setAttribute('aria-selected','true');
     document.querySelector('.headline').textContent = 'Последни видеа';
-    document.querySelector('.filters').style.display = 'none';
+    document.getElementById('filters').style.display = 'none';
+    document.getElementById('marketFilters').style.display = 'none';
     document.getElementById('list').innerHTML = '<div class="placeholder">Избери канал от менюто, за да заредиш видеа.</div>';
     loadSidebar();
   });
@@ -113,10 +115,19 @@ function wireModeSwitch(){
     btnMarkets.classList.add('active');
     btnMarkets.setAttribute('aria-selected','true');
     document.querySelector('.headline').textContent = 'Пазарни индекси и активи';
-    document.querySelector('.filters').style.display = 'none';
+
+    document.getElementById('filters').style.display = 'none';
+    document.getElementById('marketFilters').style.display = 'block';
     document.getElementById('list').innerHTML = '<div class="placeholder">Зареждам пазари...</div>';
-    if (typeof loadMarketsSidebar === 'function') loadMarketsSidebar();
-    else setStatus('⚠ markets.js не е зареден.');
+
+    const sidebar = document.getElementById('sidebar');
+    sidebar.innerHTML = '<div class="cats-loading">Пазарните филтри са горе ↑</div>';
+
+    if (typeof renderMarketFilters === 'function') {
+      renderMarketFilters();
+    } else {
+      setStatus('⚠ markets.js не е зареден.');
+    }
   });
 }
 
