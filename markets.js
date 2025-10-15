@@ -1,10 +1,68 @@
 // ==========================
-// markets.js — динамичен sidebar + Yahoo Finance данни
+// markets.js — пазарни данни + филтри в основната част
 // ==========================
 
+const MARKET_CATEGORIES = {
+  stocks: [
+    { symbol: 'AAPL', name: 'Apple' },
+    { symbol: 'MSFT', name: 'Microsoft' },
+    { symbol: 'NVDA', name: 'Nvidia' },
+    { symbol: 'AMZN', name: 'Amazon' },
+    { symbol: 'GOOG', name: 'Alphabet' },
+  ],
+  etfs: [
+    { symbol: 'SPY', name: 'S&P 500' },
+    { symbol: 'QQQ', name: 'NASDAQ 100' },
+    { symbol: 'VTI', name: 'Total US Market' },
+    { symbol: 'VGK', name: 'Europe' },
+    { symbol: 'EEM', name: 'Emerging Markets' },
+  ],
+  crypto: [
+    { symbol: 'BTC-USD', name: 'Bitcoin' },
+    { symbol: 'ETH-USD', name: 'Ethereum' },
+    { symbol: 'SOL-USD', name: 'Solana' },
+    { symbol: 'ADA-USD', name: 'Cardano' },
+    { symbol: 'XRP-USD', name: 'XRP' },
+  ]
+};
+
+function renderMarketFilters(){
+  const container = document.getElementById('marketFilters');
+  container.innerHTML = '';
+
+  Object.entries(MARKET_CATEGORIES).forEach(([key, items])=>{
+    const section = document.createElement('div');
+    section.className = 'market-section';
+
+    const title = document.createElement('h4');
+    title.textContent = key === 'stocks' ? '📈 Акции' :
+                        key === 'etfs' ? '💹 ETF-и' :
+                        '💰 Крипто';
+    section.appendChild(title);
+
+    items.forEach(({symbol, name})=>{
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="checkbox" checked data-symbol="${symbol}"> ${name} (${symbol})`;
+      section.appendChild(label);
+    });
+
+    container.appendChild(section);
+  });
+
+  container.style.display = 'block';
+
+  const checkboxes = container.querySelectorAll('input[type=checkbox]');
+  function updateSelection(){
+    const active = Array.from(checkboxes).filter(cb=>cb.checked).map(cb=>cb.dataset.symbol);
+    fetchMarketData(active);
+  }
+  checkboxes.forEach(cb=>cb.addEventListener('change', updateSelection));
+  updateSelection();
+}
+
 async function fetchMarketData(symbols){
-  if(!symbols || !symbols.length){
-    $('#list').innerHTML = '<div class="placeholder">Избери поне един актив.</div>';
+  if(!symbols.length){
+    document.getElementById('list').innerHTML = '<div class="placeholder">Избери поне един актив.</div>';
     return;
   }
 
@@ -12,21 +70,21 @@ async function fetchMarketData(symbols){
   try{
     const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
     const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res = await fetch(prox, {mode:'cors'});
+    const res = await fetch(prox);
     if(!res.ok) throw new Error('HTTP '+res.status);
-    const json = await res.json();
-    renderMarketCards(json.quoteResponse.result);
+    const data = await res.json();
+    renderMarketCards(data.quoteResponse.result);
     setStatus('');
-  }catch(e){
-    setStatus('❌ Грешка при зареждане: '+e.message);
+  }catch(err){
+    setStatus('❌ Грешка: '+err.message);
   }
 }
 
 function renderMarketCards(data){
-  const listEl = $('#list');
-  listEl.innerHTML = '';
+  const list = document.getElementById('list');
+  list.innerHTML = '';
   if(!data || !data.length){
-    listEl.innerHTML = '<div class="placeholder">Няма пазарни данни.</div>';
+    list.innerHTML = '<div class="placeholder">Няма пазарни данни.</div>';
     return;
   }
 
@@ -36,9 +94,9 @@ function renderMarketCards(data){
     const percent = item.regularMarketChangePercent?.toFixed(2) || 0;
     const up = change >= 0;
 
-    const card = document.createElement('div');
-    card.className = 'card-row';
-    card.innerHTML = `
+    const div = document.createElement('div');
+    div.className = 'card-row';
+    div.innerHTML = `
       <div class="thumb"><span>${item.symbol}</span></div>
       <div class="right-side">
         <div class="header-row">
@@ -50,28 +108,8 @@ function renderMarketCards(data){
           <span style="color:${up?'#4bff6b':'#ff4b4b'}">${up?'▲':'▼'} ${percent}%</span>
         </div>
       </div>`;
-    listEl.appendChild(card);
+    list.appendChild(div);
   });
 }
 
-// зареждане на sidebar
-async function loadMarketsSidebar(){
-  const sidebarEl = document.getElementById('sidebar');
-  try{
-    const html = await fetch('./markets.html').then(r=>r.text());
-    sidebarEl.innerHTML = html;
-
-    const checkboxes = sidebarEl.querySelectorAll('input[type=checkbox]');
-    function updateSelection(){
-      const active = Array.from(checkboxes).filter(cb=>cb.checked).map(cb=>cb.dataset.symbol);
-      fetchMarketData(active);
-    }
-    checkboxes.forEach(cb=>cb.addEventListener('change', updateSelection));
-    updateSelection(); // първоначално зареждане
-  }catch(err){
-    sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя пазари<br>${err.message}</div>`;
-  }
-}
-
-// достъпно глобално
-window.loadMarketsSidebar = loadMarketsSidebar;
+window.renderMarketFilters = renderMarketFilters;
