@@ -1,9 +1,13 @@
 // ============================
-// ✅ parser.js — фиксирана версия с реални линкове към статии
+// ✅ parser.js — фиксирано SELECTORS + реални линкове
 // ============================
 
+const SELECTORS_SAFE =
+  (typeof window !== 'undefined' && window.SELECTORS) ||
+  'div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3';
+
 function selectRawBlocks(doc) {
-  return Array.from(doc.querySelectorAll(SELECTORS));
+  return Array.from(doc.querySelectorAll(SELECTORS_SAFE));
 }
 
 function toCardElement(rawHTML, baseHref) {
@@ -18,13 +22,13 @@ function toCardElement(rawHTML, baseHref) {
   const h = wrap.querySelector('h1,h2,h3');
   const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || wrap.textContent || '(без заглавие)').trim();
 
-  // ✅ взимаме реалния линк
+  // линк към статията (абсолютен)
   const rawLink =
     h?.querySelector('a[href]')?.getAttribute('href') ||
-    wrap.querySelector('a[href]')?.getAttribute('href') ||
-    '';
+    wrap.querySelector('a[href]')?.getAttribute('href') || '';
   const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
 
+  // дата
   let isoDate = '', formattedDate = '';
   const t = wrap.querySelector('time[datetime]') || wrap.querySelector('meta[property="article:published_time"]');
   const dateText = t ? (t.getAttribute('datetime') || t.content || '') : '';
@@ -36,6 +40,7 @@ function toCardElement(rawHTML, baseHref) {
     }
   }
 
+  // източник
   let source = '';
   try { source = new URL(baseHref).hostname.replace(/^www\./, ''); } catch {}
 
@@ -49,24 +54,18 @@ function toCardElement(rawHTML, baseHref) {
     <div class="right-side">
       <div class="header-row">
         <h3 class="title">
-          <a href="${linkAbs || '#'}" target="_blank" rel="noopener noreferrer" style="cursor:pointer">
-            ${title}
-          </a>
+          <a href="${linkAbs || '#'}" target="_blank" rel="noopener noreferrer" style="cursor:pointer">${title}</a>
         </h3>
         ${formattedDate ? `<div class="meta-date">🕒 ${formattedDate}</div>` : ''}
       </div>
       <div class="meta">${source}</div>
     </div>`;
 
-  // ✅ при клик отваря четеца
-  const linkEl = card.querySelector('a');
-  linkEl.addEventListener('click', e => {
+  // клик → отваря четеца с реалния URL
+  card.querySelector('a').addEventListener('click', e => {
     e.preventDefault();
     const href = card.dataset.href || '';
-    if (!href) {
-      setStatus('❌ Липсва линк към статия.');
-      return;
-    }
+    if (!href) return setStatus('❌ Липсва линк към статия.');
     openReader(href);
   });
 
