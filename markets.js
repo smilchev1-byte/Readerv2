@@ -1,8 +1,7 @@
 // ============================
-// ✅ markets.js — фиксирано зареждане от Yahoo Finance (Cloudflare Worker)
+// markets.js — Yahoo Finance чрез allorigins
 // ============================
 
-const PROXY = 'https://tight-wildflower-8f1a.s-milchev1.workers.dev';
 const MARKET_CATEGORIES = {
   stocks: ['AAPL','MSFT','NVDA','AMZN','GOOG'],
   etfs: ['SPY','QQQ','VTI','VGK','EEM'],
@@ -32,6 +31,7 @@ function renderMarketDropdown(categoryKey) {
   const container = $('#marketFilters'), listEl = $('#list');
   container.innerHTML = ''; listEl.innerHTML = '<div class="placeholder">Избери актив.</div>';
   const items = MARKET_CATEGORIES[categoryKey]; if (!items) return;
+
   const label = document.createElement('label');
   label.textContent = 'Избери актив:'; label.className = 'market-label';
   const select = document.createElement('select');
@@ -47,16 +47,17 @@ async function fetchSingleMarketData(symbol) {
   const listEl = $('#list'); listEl.innerHTML = '';
   try {
     const yahooURL = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-    const proxURL = `${PROXY}/?url=${encodeURIComponent(yahooURL)}&nocache=${Date.now()}`;
+    const proxURL = `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooURL)}`;
     const res = await fetch(proxURL);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
-    const data = JSON.parse(text.includes('quoteResponse') ? text : JSON.stringify({quoteResponse:{result:[]}}));
-    const result = data.quoteResponse?.result?.[0];
+    const data = JSON.parse(text);
+    const result = data?.quoteResponse?.result?.[0];
     if (!result) throw new Error('Няма резултат от Yahoo');
-    renderMarketCard(result); setStatus('');
+    renderMarketCard(result);
+    setStatus('');
   } catch (e) {
-    console.error(e); setStatus('❌ ' + e.message);
+    setStatus('❌ ' + e.message);
     listEl.innerHTML = '<div class="placeholder">Няма налични данни.</div>';
   }
 }
@@ -76,7 +77,8 @@ function renderMarketCard(item) {
         <h3 class="title">${name}</h3>
         <div class="meta-date">${time}</div>
       </div>
-      <div class="meta">💰 <strong>${price}</strong>
+      <div class="meta">
+        💰 <strong>${price}</strong>
         <span style="color:${up?'#4bff6b':'#ff4b4b'}">${up?'▲':'▼'} ${perc.toFixed(2)}%</span>
       </div>
     </div>`;
