@@ -194,3 +194,25 @@ body.sidebar-collapsed aside:hover .cat .label{ display:inline-block; position:r
 /* дребни обезопасители */
 #sidebar .cat:active { transform: translateY(0); }
 .mode-switch { pointer-events: auto; }
+
+/* === Markets dropdown === */
+.market-label {
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.market-dropdown {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 16px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  outline: none;
+}
+.market-dropdown:focus {
+  border-color: var(--accent);
+}
