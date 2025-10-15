@@ -1,59 +1,75 @@
 // ============================
-// videos.js — YouTube RSS reader (fixed)
+// ✅ reader.js — финална версия (reader винаги се отваря)
 // ============================
 
-async function fetchChannelRSS(channelId) {
-  const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
-  const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
-  const res = await fetch(prox);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const xml = await res.text();
-  return parseXML(xml);
-}
+document.addEventListener('DOMContentLoaded', () => {
+  const reader = document.getElementById('reader');
+  const readerContent = document.getElementById('readerContent');
+  const readerCloseBtn = document.getElementById('readerClose');
 
-function buildVideoCard(entry) {
-  const title = entry.querySelector('title')?.textContent?.trim() || '(Без заглавие)';
-  const vid = entry.querySelector('yt\\:videoId, videoId')?.textContent || '';
-  const pub = entry.querySelector('published')?.textContent || '';
-  const iso = pub ? new Date(pub).toISOString() : '';
-  const thumb = vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : '';
-
-  const card = document.createElement('div');
-  card.className = 'card-row video';
-  if (iso) card.dataset.date = iso;
-
-  card.innerHTML = `
-    <div class="thumb">${thumb?`<img src="${thumb}" alt="">`:'<span>no image</span>'}</div>
-    <div class="right-side">
-      <div class="header-row">
-        <h3 class="title"><a href="#">${title}</a></h3>
-        ${iso?`<div class="meta-date">🕒 ${new Date(iso).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})}</div>`:''}
-      </div>
-      <div class="meta">YouTube</div>
-    </div>`;
-
-  card.querySelector('a').addEventListener('click', e => {
-    e.preventDefault();
-    if (vid) openVideoInReader(vid, title, iso);
+  readerCloseBtn?.addEventListener('click', closeReader);
+  reader.addEventListener('click', e => {
+    if (e.target.classList.contains('reader-backdrop')) closeReader();
   });
 
-  return card;
-}
-
-async function loadVideosFromChannel(channelId) {
-  setStatus('⏳ Зареждам видеа...');
-  try {
-    const xml = await fetchChannelRSS(channelId);
-    const entries = Array.from(xml.querySelectorAll('entry'));
-    const listEl = $('#list');
-    listEl.innerHTML = '';
-    if (!entries.length) {
-      listEl.innerHTML = '<div class="placeholder">Няма видеа.</div>';
-      return;
-    }
-    entries.forEach(en => listEl.appendChild(buildVideoCard(en)));
-    setStatus('');
-  } catch (err) {
-    setStatus('❌ ' + err.message);
+  function closeReader() {
+    reader.style.display = 'none';
+    reader.setAttribute('aria-hidden', 'true');
+    readerContent.innerHTML = '';
   }
-}
+
+  // ГЛОБАЛНО достъпна функция за новини
+  window.openReader = async function (url) {
+    if (!url) return setStatus('❌ Невалиден URL.');
+    setStatus('⏳ Зареждам статия…');
+
+    try {
+      const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      const res = await fetch(prox);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const html = await res.text();
+
+      // търсим "articleBody"
+      let articleText = '';
+      const match = html.match(/"articleBody"\s*:\s*"([^"]+)"/);
+      if (match) articleText = match[1].replace(/\\n/g, ' ').replace(/\\"/g, '"');
+
+      if (!articleText) {
+        const doc = parseHTML(html);
+        const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
+        if (main) articleText = main.innerText.trim();
+      }
+
+      if (!articleText) throw new Error('Не е намерено съдържание.');
+
+      const grouped = articleText
+        .split(/[\r\n]+/)
+        .filter(p => p.trim().length > 2)
+        .map((p, i) => `<p class="${i === 0 ? 'lead' : ''}">${p.trim()}</p>`)
+        .join('');
+
+      readerContent.innerHTML = grouped;
+      reader.style.display = 'block';
+      reader.setAttribute('aria-hidden', 'false');
+      setStatus('');
+    } catch (e) {
+      console.error(e);
+      setStatus('❌ Грешка: ' + e.message);
+    }
+  };
+
+  // ГЛОБАЛНО достъпна функция за видеа
+  window.openVideoInReader = function (videoId, title, publishedISO) {
+    const fDate = publishedISO ? new Date(publishedISO).toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    readerContent.innerHTML = `
+      ${fDate ? `<div class="reader-date">🕒 ${fDate}</div>` : ''}
+      <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
+        <iframe src="https://www.youtube.com/embed/${videoId}" title="${title||'Video Player'}" frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%"></iframe>
+      </div>
+      <p class="lead">${title||''}</p>`;
+    reader.style.display = 'block';
+    reader.setAttribute('aria-hidden', 'false');
+  };
+});
