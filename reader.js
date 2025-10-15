@@ -1,5 +1,5 @@
 // ============================
-// ✅ reader.js — финална версия (reader винаги се отваря)
+// reader.js — JSON-LD articleBody четец (+ заглавие от sidebar)
 // ============================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,58 +18,71 @@ document.addEventListener('DOMContentLoaded', () => {
     readerContent.innerHTML = '';
   }
 
-  // ГЛОБАЛНО достъпна функция за новини
-  window.openReader = async function (url) {
-    if (!url) return setStatus('❌ Невалиден URL.');
+  async function fetchHTML(url){
+    const api = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}&t=${Date.now()}`;
+    const res = await fetch(api, { cache: "no-store", mode: "cors", credentials: "omit" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return await res.text();
+  }
+
+  // Глобална: openReader(url, optionalTitle)
+  window.openReader = async function (url, forcedTitle){
+    if(!url){ setStatus('❌ Невалиден URL.'); return; }
     setStatus('⏳ Зареждам статия…');
 
-    try {
-      const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      const res = await fetch(prox);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const html = await res.text();
+    try{
+      const html = await fetchHTML(url);
+      const doc = parseHTML(html);
 
-      // търсим "articleBody"
       let articleText = '';
-      const match = html.match(/"articleBody"\s*:\s*"([^"]+)"/);
-      if (match) articleText = match[1].replace(/\\n/g, ' ').replace(/\\"/g, '"');
+      let datePublished = '';
+      let title = forcedTitle || doc.querySelector('h1')?.textContent?.trim() || '';
 
-      if (!articleText) {
-        const doc = parseHTML(html);
+      // JSON-LD <script type="application/ld+json">
+      const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+      for(const s of scripts){
+        try{
+          const json = JSON.parse(s.textContent.trim());
+          const tryObj = (obj)=> {
+            if(obj.headline && !title) title = obj.headline;
+            if(obj.datePublished && !datePublished) datePublished = obj.datePublished;
+            if(obj.articleBody && !articleText) articleText = obj.articleBody;
+          };
+          if (Array.isArray(json)) json.forEach(tryObj);
+          else tryObj(json);
+        }catch{/* ignore */}
+        if (articleText) break;
+      }
+
+      // fallback: основен <article>
+      if(!articleText){
         const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
         if (main) articleText = main.innerText.trim();
       }
 
-      if (!articleText) throw new Error('Не е намерено съдържание.');
+      if(!articleText) articleText = '⚠️ Не е намерен articleBody в JSON-LD.';
 
-      const grouped = articleText
-        .split(/[\r\n]+/)
-        .filter(p => p.trim().length > 2)
-        .map((p, i) => `<p class="${i === 0 ? 'lead' : ''}">${p.trim()}</p>`)
+      const fDate = datePublished ? (()=>{ const d=new Date(datePublished); return isNaN(d)?'':d.toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'}) })() : '';
+
+      const paras = articleText
+        .split(/\n{1,}/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map((p,i)=> `<p class="${i===0?'lead':''}">${p}</p>`)
         .join('');
 
-      readerContent.innerHTML = grouped;
+      readerContent.innerHTML = `
+        ${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}
+        ${title?`<p class="lead">${title}</p>`:''}
+        ${paras}
+      `;
+
       reader.style.display = 'block';
       reader.setAttribute('aria-hidden', 'false');
       setStatus('');
-    } catch (e) {
+    }catch(e){
       console.error(e);
-      setStatus('❌ Грешка: ' + e.message);
+      setStatus('❌ Грешка при зареждане: '+e.message);
     }
-  };
-
-  // ГЛОБАЛНО достъпна функция за видеа
-  window.openVideoInReader = function (videoId, title, publishedISO) {
-    const fDate = publishedISO ? new Date(publishedISO).toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-    readerContent.innerHTML = `
-      ${fDate ? `<div class="reader-date">🕒 ${fDate}</div>` : ''}
-      <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
-        <iframe src="https://www.youtube.com/embed/${videoId}" title="${title||'Video Player'}" frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%"></iframe>
-      </div>
-      <p class="lead">${title||''}</p>`;
-    reader.style.display = 'block';
-    reader.setAttribute('aria-hidden', 'false');
   };
 });
