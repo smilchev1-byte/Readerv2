@@ -1,5 +1,5 @@
 // ==========================
-// markets.js — секция „Пазари“ с категории, филтри и Yahoo Finance API
+// markets.js — стабилна версия с Cloudflare proxy
 // ==========================
 
 const MARKET_CATEGORIES = {
@@ -66,7 +66,7 @@ function renderMarketFilters(categoryKey){
   updateSelection();
 }
 
-// --- Зареждане на пазарни данни от Yahoo Finance
+// --- Извличане на пазарни данни
 async function fetchMarketData(symbols){
   const listEl = document.getElementById('list');
   if(!symbols.length){
@@ -76,20 +76,21 @@ async function fetchMarketData(symbols){
 
   setStatus('⏳ Зареждам пазарни данни...');
   try{
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
-    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res = await fetch(prox, { mode: 'cors' });
+    const yahooURL = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}`;
+    const prox = `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(yahooURL)}`;
+    
+    const res = await fetch(prox);
     if(!res.ok) throw new Error('HTTP '+res.status);
 
     let data;
     try {
-      // някои браузъри (особено Safari iOS) връщат текст, не JSON
       data = await res.json();
     } catch {
       const txt = await res.text();
       data = JSON.parse(txt);
     }
 
+    // 💡 Универсално извличане
     const result =
       data?.quoteResponse?.result ||
       data?.result ||
