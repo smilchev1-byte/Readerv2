@@ -1,5 +1,5 @@
 // ============================
-// ✅ videos.js — фиксирано отваряне на видеа
+// videos.js — YouTube RSS reader (fixed)
 // ============================
 
 async function fetchChannelRSS(channelId) {
@@ -12,7 +12,7 @@ async function fetchChannelRSS(channelId) {
 }
 
 function buildVideoCard(entry) {
-  const title = entry.querySelector('title')?.textContent?.trim() || '(video)';
+  const title = entry.querySelector('title')?.textContent?.trim() || '(Без заглавие)';
   const vid = entry.querySelector('yt\\:videoId, videoId')?.textContent || '';
   const pub = entry.querySelector('published')?.textContent || '';
   const iso = pub ? new Date(pub).toISOString() : '';
@@ -27,26 +27,33 @@ function buildVideoCard(entry) {
     <div class="right-side">
       <div class="header-row">
         <h3 class="title"><a href="#">${title}</a></h3>
-        ${iso?`<div class="meta-date">🕒 ${new Date(iso).toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'})}</div>`:''}
+        ${iso?`<div class="meta-date">🕒 ${new Date(iso).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'})}</div>`:''}
       </div>
       <div class="meta">YouTube</div>
     </div>`;
+
   card.querySelector('a').addEventListener('click', e => {
     e.preventDefault();
     if (vid) openVideoInReader(vid, title, iso);
   });
+
   return card;
 }
 
 async function loadVideosFromChannel(channelId) {
-  setStatus('⏳ Зареждам видеа…');
+  setStatus('⏳ Зареждам видеа...');
   try {
-    const listEl = $('#list');
-    listEl.innerHTML = '';
     const xml = await fetchChannelRSS(channelId);
     const entries = Array.from(xml.querySelectorAll('entry'));
-    if (!entries.length) { listEl.innerHTML = '<div class="placeholder">Няма видеа.</div>'; return; }
+    const listEl = $('#list');
+    listEl.innerHTML = '';
+    if (!entries.length) {
+      listEl.innerHTML = '<div class="placeholder">Няма видеа.</div>';
+      return;
+    }
     entries.forEach(en => listEl.appendChild(buildVideoCard(en)));
     setStatus('');
-  } catch (e) { setStatus('❌ Грешка: ' + e.message); }
+  } catch (err) {
+    setStatus('❌ ' + err.message);
+  }
 }
