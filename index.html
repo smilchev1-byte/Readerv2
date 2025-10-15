@@ -18,7 +18,7 @@
     <main id="main">
       <div class="top">
         <div class="left-actions">
-          <button id="collapseToggle" class="icon-btn" title="Меню">☰</button>
+          <button id="collapseToggle" class="icon-btn desktop-only" title="Свий/разгърни">⟨⟩</button>
         </div>
 
         <!-- Top mode switch -->
@@ -33,16 +33,13 @@
 
       <div id="status" class="status"></div>
 
-      <!-- Филтри за Новини -->
-      <section class="filters" id="filters-news">
-        <div class="filter-group">
-          <label for="timeSelect" class="cat-label">Период:</label>
-          <select id="timeSelect">
-            <option value="all" selected>Всички</option>
-            <option value="today">Днес</option>
-            <option value="week">Тази седмица</option>
-            <option value="month">Този месец</option>
-          </select>
+      <!-- Филтри -->
+      <section class="filters">
+        <div class="time-filters scroller">
+          <button class="chip" data-filter="today">Днес</button>
+          <button class="chip" data-filter="week">Тази седмица</button>
+          <button class="chip" data-filter="month">Този месец</button>
+          <button class="chip active" data-filter="all">Всички</button>
         </div>
         <div class="category-filter">
           <label for="categorySelect" class="cat-label">Категория:</label>
@@ -52,14 +49,9 @@
         </div>
       </section>
 
-      <!-- Филтри за Видеа (празно за сега) -->
-      <section class="filters" id="filters-videos" style="display:none">
-        <!-- бъдещи филтри за видеа -->
-      </section>
-
       <!-- Списък -->
       <div id="list" class="list">
-        <div class="placeholder">Използвай менюто, за да заредиш новини или видеа.</div>
+        <div class="placeholder">Използвай менюто, за да заредиш новини, видеа или пазари.</div>
       </div>
     </main>
   </div>
@@ -76,12 +68,12 @@
     </div>
   </div>
 
-  <!-- JS -->
+  <!-- JS (в този ред!) -->
   <script src="utils.js"></script>
   <script src="parser.js"></script>
   <script src="reader.js"></script>
   <script src="videos.js"></script>
-    <script src="markets.js"></script>
+  <script src="markets.js"></script> <!-- новия модул -->
   <script src="main.js"></script>
 </body>
 </html>
