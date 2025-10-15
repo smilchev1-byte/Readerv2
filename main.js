@@ -109,26 +109,17 @@ function wireModeSwitch(){
   });
 
   btnMarkets.addEventListener('click', ()=>{
-    if (MODE==='markets') return;
-    MODE='markets';
-    deactivateAll();
-    btnMarkets.classList.add('active');
-    btnMarkets.setAttribute('aria-selected','true');
-    document.querySelector('.headline').textContent = 'Пазарни индекси и активи';
-
-    document.getElementById('filters').style.display = 'none';
-    document.getElementById('marketFilters').style.display = 'block';
-    document.getElementById('list').innerHTML = '<div class="placeholder">Зареждам пазари...</div>';
-
-    const sidebar = document.getElementById('sidebar');
-    sidebar.innerHTML = '<div class="cats-loading">Пазарните филтри са горе ↑</div>';
-
-    if (typeof renderMarketFilters === 'function') {
-      renderMarketFilters();
-    } else {
-      setStatus('⚠ markets.js не е зареден.');
-    }
-  });
+  if (MODE==='markets') return;
+  MODE='markets';
+  deactivateAll();
+  btnMarkets.classList.add('active');
+  btnMarkets.setAttribute('aria-selected','true');
+  document.querySelector('.headline').textContent = 'Пазарни индекси и активи';
+  document.getElementById('filters').style.display = 'none';
+  document.getElementById('marketFilters').style.display = 'block';
+  document.getElementById('list').innerHTML = '<div class="placeholder">Избери категория от менюто вляво.</div>';
+  loadMarketsSidebar();
+});
 }
 
 // --- Скрол ефект за headline
