@@ -60,7 +60,8 @@ async function importURL(url){
   if(!url){ setStatus('Невалиден URL.'); return; }
   setStatus('⏳ Зареждам новини…');
   try{
-    const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    // ✅ Нов стабилен proxy (работи в Safari)
+    const prox = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
     const res  = await fetch(prox, {mode:'cors'});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const html = await res.text();
