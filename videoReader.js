@@ -1,71 +1,70 @@
-// ============================
-// 🎬 videoReader.js — Safari + Chrome съвместим четец
-// ============================
-
+// videoReader.js — Safari/Chrome стабилен (използва статичния #videoReader от index.html)
 document.addEventListener('DOMContentLoaded', () => {
-  // Добавяме HTML за видео reader само ако го няма
-  if (!document.getElementById('videoReader')) {
-    const div = document.createElement('div');
-    div.id = 'videoReader';
-    div.className = 'reader';
-    div.style.display = 'none';
-    div.innerHTML = `
-      <div class="reader-backdrop"></div>
-      <div class="reader-panel">
-        <div class="reader-bar">
-          <div class="reader-title">🎥 Видео</div>
-          <button id="videoReaderClose" class="btn">Затвори</button>
-        </div>
-        <div id="videoReaderContent" class="reader-content"></div>
-      </div>`;
-    document.body.appendChild(div);
+  const videoReader = document.getElementById('videoReader');
+  const content = document.getElementById('videoReaderContent');
+  const btnClose = document.getElementById('videoReaderClose');
+
+  function closeVideoReader() {
+    // спираме видеото в Safari, като чистим src
+    const iframe = content.querySelector('iframe');
+    if (iframe) iframe.src = 'about:blank';
+    content.innerHTML = '';
+    videoReader.style.display = 'none';
+    videoReader.setAttribute('aria-hidden', 'true');
   }
 
-  const videoReader = document.getElementById('videoReader');
-  const videoReaderContent = document.getElementById('videoReaderContent');
-  const videoReaderClose = document.getElementById('videoReaderClose');
-
-  // Затваряне
-  videoReaderClose?.addEventListener('click', closeVideoReader);
-  videoReader.addEventListener('click', e => {
+  btnClose?.addEventListener('click', closeVideoReader);
+  videoReader.addEventListener('click', (e) => {
     if (e.target.classList.contains('reader-backdrop')) closeVideoReader();
   });
 
-  function closeVideoReader() {
-    videoReader.style.display = 'none';
-    videoReader.setAttribute('aria-hidden', 'true');
-    videoReaderContent.innerHTML = '';
-  }
+  // Глобална функция за отваряне (извиква се от videos.js)
+  window.openVideoInReader = function openVideoInReader(videoId, title = '', publishedISO = '') {
+    if (!videoId) return;
 
-  // === Основна функция, достъпна глобално ===
-  window.openVideoInReader = function (videoId, title, publishedISO) {
-    if (!videoId) return setStatus('❌ Невалиден videoId.');
+    // дати
+    let dateHTML = '';
+    if (publishedISO) {
+      const d = new Date(publishedISO);
+      if (!isNaN(+d)) {
+        dateHTML = `<div class="reader-date">🕒 ${d.toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' })}</div>`;
+      }
+    }
 
-    const fDate = publishedISO
-      ? new Date(publishedISO).toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' })
-      : '';
+    // контейнер за 16:9
+    const wrap = document.createElement('div');
+    wrap.style.position = 'relative';
+    wrap.style.paddingBottom = '56.25%';
+    wrap.style.height = '0';
+    wrap.style.overflow = 'hidden';
+    wrap.style.borderRadius = '12px';
+    wrap.style.marginBottom = '16px';
+    wrap.style.WebkitOverflowScrolling = 'touch';
 
-    // Safari fix: използваме srcdoc + sandbox за сигурност
-    const iframeHTML = `
-      <iframe
-        src="https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1"
-        title="${title || 'Видео'}"
-        frameborder="0"
-        allowfullscreen
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;">
-      </iframe>`;
+    // Създаваме iframe чрез DOM API (по-надеждно в Safari)
+    const iframe = document.createElement('iframe');
+    const src = `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&modestbranding=1&rel=0&enablejsapi=1`;
+    iframe.setAttribute('src', src);
+    iframe.setAttribute('title', title || 'Video Player');
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('webkitallowfullscreen', '');
+    iframe.setAttribute('mozallowfullscreen', '');
+    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+    iframe.style.position = 'absolute';
+    iframe.style.top = '0';
+    iframe.style.left = '0';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = '0';
 
-    videoReaderContent.innerHTML = `
-      ${fDate ? `<div class="reader-date">🕒 ${fDate}</div>` : ''}
-      <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px;-webkit-overflow-scrolling:touch;">
-        ${iframeHTML}
-      </div>
-      <p class="lead">${title || ''}</p>`;
+    wrap.appendChild(iframe);
 
-    // показваме панела
+    content.innerHTML = `${dateHTML}<p class="lead">${title}</p>`;
+    content.insertBefore(wrap, content.firstChild);
+
+    // показване
     videoReader.style.display = 'block';
     videoReader.setAttribute('aria-hidden', 'false');
-    setStatus('');
   };
 });
