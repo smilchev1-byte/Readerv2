@@ -1,10 +1,11 @@
 // ==========================
-// markets.js — Yahoo през твоя Cloudflare Worker (по 1 символ)
+// markets.js — Пазари (Yahoo Finance през Cloudflare Worker)
 // ==========================
 
-// твой Cloudflare Worker (увери се, че е активен)
+// твой Cloudflare Worker proxy
 const PROXY = 'https://tight-wildflower-8f1a.s-milchev1.workers.dev';
 
+// налични категории и символи
 const MARKET_CATEGORIES = {
   stocks: ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG'],
   etfs: ['SPY', 'QQQ', 'VTI', 'VGK', 'EEM'],
@@ -26,6 +27,11 @@ async function loadMarketsSidebar() {
         renderMarketDropdown(btn.dataset.market);
       });
     });
+
+    // По подразбиране — активира Stocks
+    const firstBtn = sidebarEl.querySelector('[data-market="stocks"]');
+    if (firstBtn) firstBtn.click();
+
   } catch (err) {
     sidebarEl.innerHTML = `<div class="placeholder">❌ Не успях да заредя пазари<br>${err.message}</div>`;
   }
@@ -64,22 +70,35 @@ function renderMarketDropdown(categoryKey) {
   container.style.display = 'block';
 
   select.addEventListener('change', () => fetchSingleMarketData(select.value));
-  fetchSingleMarketData(select.value); // по подразбиране първия
+  fetchSingleMarketData(select.value); // зарежда първия символ
 }
 
-// === Зареждане на Yahoo Finance през Worker ===
+// === Изтегляне на Yahoo данни през Cloudflare Worker ===
 async function fetchSingleMarketData(symbol) {
   setStatus(`⏳ Зареждам данни за ${symbol}...`);
   const listEl = document.getElementById('list');
   listEl.innerHTML = '';
 
   try {
+    // Генерираме вътрешния Yahoo URL
     const yahooURL = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-    const proxURL = `${PROXY}/?url=${encodeURIComponent(yahooURL)}&nocache=${Date.now()}`;
+
+    // Кодираме два пъти, за да се приеме от Worker-а
+    const safeURL = encodeURIComponent(encodeURIComponent(yahooURL));
+
+    // Пълен работещ линк към твоя Worker
+    const proxURL = `${PROXY}/?url=${safeURL}&nocache=${Date.now()}`;
+
     const res = await fetch(proxURL, { mode: 'cors' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
 
-    const wrapper = await res.json();
+    let wrapper;
+    try {
+      wrapper = await res.json();
+    } catch {
+      wrapper = JSON.parse(await res.text());
+    }
+
     const data = wrapper?.data || wrapper;
     const result = data?.quoteResponse?.result?.[0];
 
@@ -94,7 +113,7 @@ async function fetchSingleMarketData(symbol) {
   }
 }
 
-// === Визуализира избрания актив ===
+// === Визуализация на картата за избрания актив ===
 function renderMarketCard(item) {
   const list = document.getElementById('list');
   list.innerHTML = '';
