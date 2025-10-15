@@ -1,19 +1,21 @@
-// RSS от YouTube канал
-async function fetchChannelRSS(channelId){
+// ============================
+// ✅ videos.js — фиксирано отваряне на видеа
+// ============================
+
+async function fetchChannelRSS(channelId) {
   const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
-  // ✅ Нов proxy (работи в Safari)
-  const prox   = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`;
-  const res = await fetch(prox, {mode:'cors'});
-  if(!res.ok) throw new Error('HTTP '+res.status);
+  const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
+  const res = await fetch(prox);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   const xml = await res.text();
   return parseXML(xml);
 }
 
-function buildVideoCard(entry){
+function buildVideoCard(entry) {
   const title = entry.querySelector('title')?.textContent?.trim() || '(video)';
-  const vid   = entry.querySelector('yt\\:videoId, videoId')?.textContent || '';
-  const pub   = entry.querySelector('published')?.textContent || '';
-  const iso   = pub ? new Date(pub).toISOString() : '';
+  const vid = entry.querySelector('yt\\:videoId, videoId')?.textContent || '';
+  const pub = entry.querySelector('published')?.textContent || '';
+  const iso = pub ? new Date(pub).toISOString() : '';
   const thumb = vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : '';
 
   const card = document.createElement('div');
@@ -27,31 +29,24 @@ function buildVideoCard(entry){
         <h3 class="title"><a href="#">${title}</a></h3>
         ${iso?`<div class="meta-date">🕒 ${new Date(iso).toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'})}</div>`:''}
       </div>
-      <div class="meta">YouTube • ${vid}</div>
-    </div>
-  `;
-  card.querySelector('a').addEventListener('click', e=>{
+      <div class="meta">YouTube</div>
+    </div>`;
+  card.querySelector('a').addEventListener('click', e => {
     e.preventDefault();
-    if(!vid) return;
-    openVideoInReader(vid, title, iso);
+    if (vid) openVideoInReader(vid, title, iso);
   });
   return card;
 }
 
-async function loadVideosFromChannel(channelId){
+async function loadVideosFromChannel(channelId) {
   setStatus('⏳ Зареждам видеа…');
-  try{
-    const listEl = $('#list'); listEl.innerHTML = '';
+  try {
+    const listEl = $('#list');
+    listEl.innerHTML = '';
     const xml = await fetchChannelRSS(channelId);
     const entries = Array.from(xml.querySelectorAll('entry'));
-    if(!entries.length){
-      listEl.innerHTML = '<div class="placeholder">Няма видеа.</div>';
-      setStatus('');
-      return;
-    }
+    if (!entries.length) { listEl.innerHTML = '<div class="placeholder">Няма видеа.</div>'; return; }
     entries.forEach(en => listEl.appendChild(buildVideoCard(en)));
     setStatus('');
-  }catch(e){
-    setStatus('❌ Грешка при зареждане: '+e.message);
-  }
+  } catch (e) { setStatus('❌ Грешка: ' + e.message); }
 }
