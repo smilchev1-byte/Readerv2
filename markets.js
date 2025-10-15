@@ -2,7 +2,6 @@
 // markets.js — секция „Пазари“ с категории, филтри и Yahoo Finance API
 // ==========================
 
-// Примерни активи по категории
 const MARKET_CATEGORIES = {
   stocks: [
     { symbol: 'AAPL', name: 'Apple' },
@@ -81,9 +80,16 @@ async function fetchMarketData(symbols){
     const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
     const res = await fetch(prox, { mode: 'cors' });
     if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
 
-    // 💡 Универсално извличане на резултати
+    let data;
+    try {
+      // някои браузъри (особено Safari iOS) връщат текст, не JSON
+      data = await res.json();
+    } catch {
+      const txt = await res.text();
+      data = JSON.parse(txt);
+    }
+
     const result =
       data?.quoteResponse?.result ||
       data?.result ||
@@ -160,5 +166,4 @@ async function loadMarketsSidebar(){
   }
 }
 
-// --- Експортираме функцията за main.js
 window.loadMarketsSidebar = loadMarketsSidebar;
