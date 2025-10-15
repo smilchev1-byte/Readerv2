@@ -1,5 +1,5 @@
 // ============================
-// ✅ reader.js — стабилна версия (инициализация след DOM)
+// ✅ reader.js — работеща логика за articleBody + видеа
 // ============================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const readerCloseBtn = document.getElementById('readerClose');
 
   if (!reader || !readerContent) {
-    console.error('❌ reader или readerContent не е намерен в DOM.');
+    console.error('❌ reader или readerContent липсва в DOM.');
     return;
   }
 
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     readerContent.innerHTML = '';
   }
 
-  // --- Новини ---
+  // === Новини: извличане на articleBody директно от HTML ===
   window.openReader = async function (url) {
     if (!url) return setStatus('❌ Невалиден URL.');
     setStatus('⏳ Зареждам статия…');
@@ -34,29 +34,28 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const html = await res.text();
 
-      let articleText = '', dateText = '';
-
-      // 1️⃣ Търси "articleBody"
+      // 1️⃣ директно търсим "articleBody":
+      let articleText = '';
       const match = html.match(/"articleBody"\s*:\s*"([^"]+)"/);
-      if (match) articleText = match[1];
+      if (match) articleText = match[1].replace(/\\n/g, ' ').replace(/\\"/g, '"');
 
-      // 2️⃣ Ако не — търси JSON
+      // 2️⃣ fallback към JSON блокове
       if (!articleText) {
-        const scripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
-        for (let s of scripts) {
+        const ldScripts = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+        for (let s of ldScripts) {
           try {
-            const j = JSON.parse(s.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1]);
-            if (Array.isArray(j)) {
-              for (const o of j) if (o.articleBody) { articleText = o.articleBody; dateText = o.datePublished || ''; break; }
-            } else if (j.articleBody) {
-              articleText = j.articleBody; dateText = j.datePublished || '';
+            const json = JSON.parse(s.match(/<script[^>]*>([\s\S]*?)<\/script>/i)[1]);
+            if (Array.isArray(json)) {
+              for (const j of json) if (j.articleBody) { articleText = j.articleBody; break; }
+            } else if (json.articleBody) {
+              articleText = json.articleBody;
             }
           } catch {}
           if (articleText) break;
         }
       }
 
-      // 3️⃣ Fallback <article>
+      // 3️⃣ fallback към <article>
       if (!articleText) {
         const doc = parseHTML(html);
         const main = doc.querySelector('article, .article, .post-content, [itemprop="articleBody"]');
@@ -65,15 +64,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!articleText) throw new Error('Не е намерено съдържание.');
 
+      // 4️⃣ разделяме на параграфи
       const grouped = articleText
         .split(/[\r\n]+/)
         .filter(p => p.trim().length > 2)
-        .map((p, i) => `<p class="${i===0?'lead':''}">${p.trim()}</p>`)
+        .map((p, i) => `<p class="${i === 0 ? 'lead' : ''}">${p.trim()}</p>`)
         .join('');
 
-      const formattedDate = dateText ? new Date(dateText).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'}) : '';
-      readerContent.innerHTML = `${formattedDate?`<div class="reader-date">🕒 ${formattedDate}</div>`:''}${grouped}`;
-
+      readerContent.innerHTML = grouped;
       reader.style.display = 'block';
       reader.setAttribute('aria-hidden', 'false');
       setStatus('');
@@ -83,17 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // --- Видеа ---
+  // === Видеа: YouTube embed ===
   window.openVideoInReader = function (videoId, title, publishedISO) {
-    const fDate = publishedISO ? new Date(publishedISO).toLocaleString('bg-BG',{dateStyle:'medium',timeStyle:'short'}) : '';
+    const fDate = publishedISO ? new Date(publishedISO).toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' }) : '';
     readerContent.innerHTML = `
-      ${fDate?`<div class="reader-date">🕒 ${fDate}</div>`:''}
+      ${fDate ? `<div class="reader-date">🕒 ${fDate}</div>` : ''}
       <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:16px">
-        <iframe src="https://www.youtube.com/embed/${videoId}" title="${title||'Video Player'}" frameborder="0"
+        <iframe src="https://www.youtube.com/embed/${videoId}" title="${title || 'Video Player'}" frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%"></iframe>
       </div>
-      <p class="lead">${title||''}</p>`;
+      <p class="lead">${title || ''}</p>`;
     reader.style.display = 'block';
     reader.setAttribute('aria-hidden', 'false');
   };
