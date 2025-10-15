@@ -1,13 +1,13 @@
-// ==========================
-// parser.js — оригинална логика от работещия commit
-// ==========================
+// ============================
+// ✅ parser.js — фиксирана версия с реални линкове към статии
+// ============================
 
-function selectRawBlocks(doc){
-  return Array.from(doc.querySelectorAll('div.card.pt-4.pb-4.ad0, div.card.pt-4.pb-4.ad3'));
+function selectRawBlocks(doc) {
+  return Array.from(doc.querySelectorAll(SELECTORS));
 }
 
-function toCardElement(rawHTML, baseHref){
-  const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
+function toCardElement(rawHTML, baseHref) {
+  const fragDoc = parseHTML('<div id="wrap">' + rawHTML + '</div>');
   const wrap = fragDoc.getElementById('wrap');
   sanitize(wrap);
   fixRelativeURLs(wrap, baseHref);
@@ -18,7 +18,11 @@ function toCardElement(rawHTML, baseHref){
   const h = wrap.querySelector('h1,h2,h3');
   const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || wrap.textContent || '(без заглавие)').trim();
 
-  const rawLink = (h?.querySelector('a[href]')?.getAttribute('href')) || wrap.querySelector('a[href]')?.getAttribute('href') || '';
+  // ✅ взимаме реалния линк
+  const rawLink =
+    h?.querySelector('a[href]')?.getAttribute('href') ||
+    wrap.querySelector('a[href]')?.getAttribute('href') ||
+    '';
   const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
 
   let isoDate = '', formattedDate = '';
@@ -28,69 +32,71 @@ function toCardElement(rawHTML, baseHref){
     const d = new Date(dateText);
     if (!isNaN(d)) {
       isoDate = d.toISOString();
-      formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
+      formattedDate = d.toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' });
     }
   }
 
-  const breadcrumb = wrap.querySelector('li.breadcrumb-item.d-lg-inline.mb-1');
-  const category = breadcrumb ? breadcrumb.textContent.trim() : '';
-
-  let source = ''; 
-  try { source = new URL(baseHref).hostname.replace(/^www\./,''); } catch {}
+  let source = '';
+  try { source = new URL(baseHref).hostname.replace(/^www\./, ''); } catch {}
 
   const card = document.createElement('div');
   card.className = 'card-row';
   if (isoDate) card.dataset.date = isoDate;
-  if (category) card.dataset.category = category;
   if (linkAbs) card.dataset.href = linkAbs;
 
   card.innerHTML = `
-    <div class="thumb">${imgSrc?`<img src="${imgSrc}" alt="">`:'<span>no image</span>'}</div>
+    <div class="thumb">${imgSrc ? `<img src="${imgSrc}" alt="">` : '<span>no image</span>'}</div>
     <div class="right-side">
       <div class="header-row">
-        <h3 class="title"><a href="#">${title}</a></h3>
-        ${formattedDate?`<div class="meta-date">🕒 ${formattedDate}</div>`:''}
+        <h3 class="title">
+          <a href="${linkAbs || '#'}" target="_blank" rel="noopener noreferrer" style="cursor:pointer">
+            ${title}
+          </a>
+        </h3>
+        ${formattedDate ? `<div class="meta-date">🕒 ${formattedDate}</div>` : ''}
       </div>
-      <div class="meta">${source}${category?` • ${category}`:''}</div>
+      <div class="meta">${source}</div>
     </div>`;
 
-  card.querySelector('a').addEventListener('click', e=>{
+  // ✅ при клик отваря четеца
+  const linkEl = card.querySelector('a');
+  linkEl.addEventListener('click', e => {
     e.preventDefault();
     const href = card.dataset.href || '';
-    if (!href) { setStatus('❌ Липсва линк към статия.'); return; }
+    if (!href) {
+      setStatus('❌ Липсва линк към статия.');
+      return;
+    }
     openReader(href);
   });
 
   return card;
 }
 
-async function importURL(url){
-  if(!url){ setStatus('Невалиден URL.'); return; }
+async function importURL(url) {
+  if (!url) return setStatus('Невалиден URL.');
   setStatus('⏳ Зареждам новини…');
-  try{
-    // 🧩 Оригиналното proxy от работещата версия:
+  try {
     const prox = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res  = await fetch(prox, {mode:'cors'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    const res = await fetch(prox, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const html = await res.text();
-    const doc  = parseHTML(html);
+    const doc = parseHTML(html);
     renderCardsFromDoc(doc, url);
     setStatus('');
-  }catch(e){
-    setStatus('❌ CORS/HTTP грешка: '+e.message);
+  } catch (e) {
+    setStatus('❌ Грешка: ' + e.message);
   }
 }
 
-function renderCardsFromDoc(doc, baseHref){
-  const listEl = $('#list'); 
+function renderCardsFromDoc(doc, baseHref) {
+  const listEl = $('#list');
   listEl.innerHTML = '';
   const raw = selectRawBlocks(doc);
-  if(!raw.length){
+  if (!raw.length) {
     listEl.innerHTML = '<div class="placeholder">Няма намерени елементи.</div>';
-    setStatus('⚠ Няма намерени елементи.');
     return;
   }
   raw.forEach(node => listEl.appendChild(toCardElement(node.outerHTML, baseHref)));
   populateCategories();
-  setStatus(`✔ Заредени статии: ${raw.length}`);
 }
