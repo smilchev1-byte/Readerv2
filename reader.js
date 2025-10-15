@@ -47,8 +47,8 @@ async function openReader(url){
   if (!url) { setStatus('❌ Невалиден URL за статия.'); return; }
   setStatus('⏳ Зареждам статия…');
   try{
-    // ✅ Нов proxy (работи на Safari)
-    const prox = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+    // ✅ стабилен proxy за Safari
+    const prox = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`;
     const res  = await fetch(prox, { mode:'cors' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
