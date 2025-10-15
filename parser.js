@@ -1,58 +1,40 @@
 // ============================
-// ✅ parser.js — стабилен парсер за новини (Safari/Chrome)
+// ✅ parser.js — стабилен, без кеш, без объркване между секции
+// (максимално близо до предишната ти логика)
 // ============================
 
-// Универсални селектори за различни сайтове
 const SELECTORS = [
-  'article',                     // OFFNews, Dnevnik, Mediapool
-  '.article-item',               // Kapital, Dnevnik
-  '.post',                       // bTV
-  '.news-item',                  // OFFNews
-  '.story',                      // BBC
-  '.c-article',                  // Mediapool
-  '.l-article'                   // други
+  'article',
+  '.article-item',
+  '.post',
+  '.news-item',
+  '.story',
+  '.c-article',
+  '.l-article'
 ].join(',');
 
-// ---- Proxy fallback (по приоритет) ----
-const NEWS_PROXIES = [
-  url => `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(url)}&t=${Date.now()}`,
-  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
-];
-
-// ---- Изтегляне с fallback по proxy списък ----
-async function fetchWithProxies(url) {
-  let lastErr;
-  for (const make of NEWS_PROXIES) {
-    const proxURL = make(url);
-    try {
-      const res = await fetch(proxURL, { mode: 'cors', cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      if (text && text.length > 100) return text;
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr || new Error('Всички proxy опити неуспешни');
-}
+// ——— вътрешно anti-race id, за да игнорираме по-стари отговори
+let __newsReqId = 0;
 
 // Избира raw блоковете със статии от HTML
-function selectRawBlocks(doc) {
+function selectRawBlocks(doc){
   return Array.from(doc.querySelectorAll(SELECTORS));
 }
 
 // Карта от raw HTML
-function toCardElement(rawHTML, baseHref) {
-  const fragDoc = parseHTML('<div id="wrap">' + rawHTML + '</div>');
+function toCardElement(rawHTML, baseHref){
+  const fragDoc = parseHTML('<div id="wrap">'+rawHTML+'</div>');
   const wrap = fragDoc.getElementById('wrap');
   sanitize(wrap);
   fixRelativeURLs(wrap, baseHref);
 
-  const imgSrc = wrap.querySelector('img')?.getAttribute('src') || '';
+  const img = wrap.querySelector('img');
+  const imgSrc = img?.getAttribute('src') || '';
+
   const h = wrap.querySelector('h1,h2,h3,h4');
   const title = (h?.textContent || wrap.querySelector('a[href]')?.textContent || '(без заглавие)').trim();
-  const rawLink = h?.querySelector('a[href]')?.getAttribute('href') || wrap.querySelector('a[href]')?.getAttribute('href') || '';
+
+  const rawLink = (h?.querySelector('a[href]')?.getAttribute('href')) || wrap.querySelector('a[href]')?.getAttribute('href') || '';
   const linkAbs = rawLink ? absURL(baseHref, rawLink) : '';
 
   let isoDate = '', formattedDate = '';
@@ -62,61 +44,117 @@ function toCardElement(rawHTML, baseHref) {
     const d = new Date(dateText);
     if (!isNaN(d)) {
       isoDate = d.toISOString();
-      formattedDate = d.toLocaleString('bg-BG', { dateStyle: 'medium', timeStyle: 'short' });
+      formattedDate = d.toLocaleString('bg-BG',{dateStyle:'medium', timeStyle:'short'});
     }
   }
 
+  // опит за категория (ако има)
   const breadcrumb = wrap.querySelector('li.breadcrumb-item, .category, .news-category');
   const category = breadcrumb ? breadcrumb.textContent.trim() : '';
+
   let source = '';
-  try { source = new URL(baseHref).hostname.replace(/^www\./, ''); } catch {}
+  try { source = new URL(baseHref).hostname.replace(/^www\./,''); } catch {}
 
   const card = document.createElement('div');
   card.className = 'card-row';
   if (isoDate) card.dataset.date = isoDate;
-  if (linkAbs) card.dataset.href = linkAbs;
   if (category) card.dataset.category = category;
+  if (linkAbs) card.dataset.href = linkAbs;
 
   card.innerHTML = `
     <div class="thumb">${imgSrc ? `<img src="${imgSrc}" alt="">` : '<span>no image</span>'}</div>
     <div class="right-side">
       <div class="header-row">
-        <h3 class="title"><a href="${linkAbs || '#'}" target="_blank" rel="noopener noreferrer">${title}</a></h3>
+        <h3 class="title">
+          <a href="${linkAbs || '#'}" target="_blank" rel="noopener noreferrer" style="cursor:pointer">${title}</a>
+        </h3>
         ${formattedDate ? `<div class="meta-date">🕒 ${formattedDate}</div>` : ''}
       </div>
-      <div class="meta">${source}${category ? ` • ${category}` : ''}</div>
+      <div class="meta">${source}${category?` • ${category}`:''}</div>
     </div>`;
 
-  card.querySelector('a').addEventListener('click', e => {
+  card.querySelector('a').addEventListener('click', e=>{
     e.preventDefault();
     const href = card.dataset.href || '';
-    if (!href) return setStatus('❌ Липсва линк към статия.');
+    if (!href) { setStatus('❌ Липсва линк към статия.'); return; }
     openReader(href);
   });
 
   return card;
 }
 
-// Импорт по URL (автоматичен proxy fallback)
-async function importURL(url) {
-  if (!url) { setStatus('Невалиден URL.'); return; }
+// Импорт по URL — стабилен, без кеш + fallback proxy
+async function importURL(url){
+  if(!url){ setStatus('Невалиден URL.'); return; }
+  const reqId = ++__newsReqId;
+
   setStatus('⏳ Зареждам новини…');
-  try {
-    const html = await fetchWithProxies(url);
+  const listEl = $('#list');
+  listEl.innerHTML = '';
+
+  // добавяме cache-buster към самия URL (за секции на един и същ домейн)
+  const targetURL = new URL(url, location.href);
+  targetURL.searchParams.set('_ts', Date.now().toString());
+
+  // proxy в този ред (макс. близо до твоята логика)
+  const chain = [
+    // твой Cloudflare Worker (ако е активен)
+    (u) => `https://tight-wildflower-8f1a.s-milchev1.workers.dev/?url=${encodeURIComponent(u)}&nocache=${Date.now()}`,
+    // Codetabs
+    (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    // AllOrigins
+    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
+  ];
+
+  let html = '';
+  let lastErr = null;
+
+  for (const make of chain) {
+    const prox = make(targetURL.href);
+    try {
+      const res = await fetch(prox, {
+        mode: 'cors',
+        cache: 'reload',
+        credentials: 'omit',
+        headers: {
+          'pragma': 'no-cache',
+          'cache-control': 'no-cache'
+        }
+      });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const text = await res.text();
+      if (!text || text.length < 64) throw new Error('Празен отговор');
+      html = text;
+      break;
+    } catch (e) {
+      lastErr = e;
+      // пробваме следващия proxy
+    }
+  }
+
+  if (!html) {
+    setStatus('❌ CORS/HTTP грешка: ' + (lastErr?.message || lastErr || 'неизвестна'));
+    return;
+  }
+
+  // ако междувременно е стартирана нова заявка — игнорирай тази
+  if (reqId !== __newsReqId) return;
+
+  try{
     const doc = parseHTML(html);
-    renderCardsFromDoc(doc, url);
+    renderCardsFromDoc(doc, targetURL.href);
     setStatus('');
-  } catch (e) {
-    setStatus('❌ CORS/HTTP грешка: ' + e.message);
+  }catch(e){
+    setStatus('❌ Грешка при парсване: '+e.message);
   }
 }
 
 // Рендер на картите
-function renderCardsFromDoc(doc, baseHref) {
+function renderCardsFromDoc(doc, baseHref){
   const listEl = $('#list');
   listEl.innerHTML = '';
   const raw = selectRawBlocks(doc);
-  if (!raw.length) {
+  if(!raw.length){
     listEl.innerHTML = '<div class="placeholder">Няма намерени елементи.</div>';
     return;
   }
